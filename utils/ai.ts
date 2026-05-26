@@ -31,7 +31,7 @@ export async function sendMessage(
   const body = {
     system_instruction: { parts: [{ text: persona.systemPrompt }] },
     contents,
-    generationConfig: { maxOutputTokens: 1024, temperature: 0.85 },
+    generationConfig: { maxOutputTokens: 200, temperature: 0.85 },
   };
 
   const response = await fetch(url, {
