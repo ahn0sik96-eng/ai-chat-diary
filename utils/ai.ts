@@ -1,7 +1,7 @@
 import { ChatMessage } from './storage';
 import { PERSONAS, PersonaId } from '../constants/personas';
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 /**
  * Send messages to Gemini API with the selected persona's system prompt.
