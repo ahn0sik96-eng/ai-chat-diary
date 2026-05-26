@@ -1,20 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  Alert,
+  View, Text, FlatList, StyleSheet,
+  TouchableOpacity, SafeAreaView, Alert,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { DiaryEntry, loadDiaryEntries, deleteDiaryEntry } from '../utils/storage';
 import { PERSONAS } from '../constants/personas';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
 
 export default function ArchiveScreen() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const router = useRouter();
 
   useFocusEffect(
     useCallback(() => {
@@ -26,8 +22,7 @@ export default function ArchiveScreen() {
     Alert.alert('일기 삭제', '이 일기를 삭제할까요?', [
       { text: '취소', style: 'cancel' },
       {
-        text: '삭제',
-        style: 'destructive',
+        text: '삭제', style: 'destructive',
         onPress: async () => {
           await deleteDiaryEntry(id);
           setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -48,13 +43,17 @@ export default function ArchiveScreen() {
         keyExtractor={(e) => e.id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <EntryCard entry={item} onDelete={() => confirmDelete(item.id)} />
+          <EntryCard
+            entry={item}
+            onPress={() => router.push({ pathname: '/diary/[id]', params: { id: item.id } })}
+            onDelete={() => confirmDelete(item.id)}
+          />
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>📝</Text>
             <Text style={styles.emptyText}>
-              아직 저장된 일기가 없어요.{'\n'}채팅 후 오른쪽 상단 [저장]을 눌러보세요!
+              아직 저장된 일기가 없어요.{'\n'}채팅 후 [저장] 버튼을 눌러보세요!
             </Text>
           </View>
         }
@@ -63,14 +62,22 @@ export default function ArchiveScreen() {
   );
 }
 
-function EntryCard({ entry, onDelete }: { entry: DiaryEntry; onDelete: () => void }) {
+function EntryCard({
+  entry, onPress, onDelete,
+}: {
+  entry: DiaryEntry;
+  onPress: () => void;
+  onDelete: () => void;
+}) {
   const persona = PERSONAS.find((p) => p.id === entry.persona_id);
   const preview = entry.messages.find((m) => m.role === 'user')?.content ?? '';
+  const hasDecoration = (entry.stickers?.length ?? 0) > 0 || !!entry.font;
 
   return (
     <TouchableOpacity
       style={[styles.card, { borderLeftColor: persona?.accentColor ?? Colors.peach }]}
       activeOpacity={0.85}
+      onPress={onPress}
       onLongPress={onDelete}
     >
       <View style={styles.cardTop}>
@@ -79,22 +86,18 @@ function EntryCard({ entry, onDelete }: { entry: DiaryEntry; onDelete: () => voi
           <Text style={styles.cardPersona}>{persona?.name ?? '친구'}</Text>
           <Text style={styles.cardDate}>{formatDate(entry.created_at)}</Text>
         </View>
+        {hasDecoration && <Text style={styles.decorBadge}>꾸밈 ✨</Text>}
       </View>
       {entry.title ? <Text style={styles.cardTitle}>{entry.title}</Text> : null}
-      <Text style={styles.cardPreview} numberOfLines={2}>
-        {preview}
-      </Text>
-      <Text style={styles.cardCount}>{entry.messages.length}개의 메시지 · 길게 눌러 삭제</Text>
+      <Text style={styles.cardPreview} numberOfLines={2}>{preview}</Text>
+      <Text style={styles.cardHint}>{entry.messages.length}개 메시지 · 탭해서 보기 · 길게 눌러 삭제</Text>
     </TouchableOpacity>
   );
 }
 
 function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short',
+  return new Date(iso).toLocaleDateString('ko-KR', {
+    month: 'long', day: 'numeric', weekday: 'short',
   });
 }
 
@@ -105,39 +108,21 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: 2 },
   list: { padding: Spacing.md, gap: Spacing.sm },
   card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    borderLeftWidth: 4,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 2,
+    backgroundColor: Colors.surface, borderRadius: Radius.md,
+    padding: Spacing.md, borderLeftWidth: 4,
+    shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1, shadowRadius: 6, elevation: 2,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
   cardEmoji: { fontSize: 24, marginRight: Spacing.sm },
   cardMeta: { flex: 1 },
   cardPersona: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.text },
   cardDate: { fontSize: FontSize.xs, color: Colors.textSecondary },
-  cardTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
+  decorBadge: { fontSize: FontSize.xs, color: Colors.peachDark, fontWeight: '600' },
+  cardTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, marginBottom: Spacing.xs },
   cardPreview: { fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 20 },
-  cardCount: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: Spacing.xs },
-  empty: {
-    alignItems: 'center',
-    paddingTop: 80,
-    paddingHorizontal: Spacing.xl,
-  },
+  cardHint: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: Spacing.xs },
+  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: Spacing.xl },
   emptyEmoji: { fontSize: 48, marginBottom: Spacing.md },
-  emptyText: {
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
+  emptyText: { fontSize: FontSize.md, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24 },
 });

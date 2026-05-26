@@ -8,6 +8,7 @@ interface BubbleProps {
   accentColor?: string;
   accentLight?: string;
   timestamp?: string;
+  fontFamily?: string;
 }
 
 export default function Bubble({
@@ -16,6 +17,7 @@ export default function Bubble({
   accentColor = Colors.peach,
   accentLight = Colors.peachLight,
   timestamp,
+  fontFamily,
 }: BubbleProps) {
   const isUser = role === 'user';
 
@@ -29,7 +31,7 @@ export default function Bubble({
             : [styles.bubbleAssistant, { backgroundColor: accentLight }],
         ]}
       >
-        <Text style={[styles.text, isUser && styles.textUser]}>{content}</Text>
+        <Text style={[styles.text, fontFamily ? { fontFamily } : null]}>{content}</Text>
         {timestamp && (
           <Text style={[styles.timestamp, isUser && styles.timestampUser]}>
             {formatTime(timestamp)}
@@ -59,19 +61,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
   },
-  bubbleUser: {
-    borderBottomRightRadius: Radius.sm,
-  },
-  bubbleAssistant: {
-    borderBottomLeftRadius: Radius.sm,
-  },
+  bubbleUser: { borderBottomRightRadius: Radius.sm },
+  bubbleAssistant: { borderBottomLeftRadius: Radius.sm },
   text: {
     fontSize: FontSize.md,
     color: Colors.text,
     lineHeight: 22,
-  },
-  textUser: {
-    color: Colors.text,
   },
   timestamp: {
     fontSize: FontSize.xs,
@@ -79,7 +74,5 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
     alignSelf: 'flex-end',
   },
-  timestampUser: {
-    color: 'rgba(51,51,51,0.55)',
-  },
+  timestampUser: { color: 'rgba(51,51,51,0.55)' },
 });
