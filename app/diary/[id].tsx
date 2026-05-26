@@ -148,9 +148,20 @@ export default function DiaryDetailScreen() {
         </View>
       )}
 
-      {/* Canvas: chat bubbles + placed stickers */}
+      {/* Canvas: summary + chat bubbles + placed stickers */}
       <View style={styles.canvas} onLayout={onCanvasLayout}>
         <ScrollView contentContainerStyle={styles.bubbleList}>
+          {/* AI-generated diary summary */}
+          {entry.summary ? (
+            <View style={[styles.summaryCard, { borderLeftColor: persona?.accentColor ?? Colors.peach }]}>
+              <Text style={styles.summaryDate}>{formatDate(entry.created_at)}</Text>
+              <Text style={[styles.summaryText, selectedFont ? { fontFamily: selectedFont } : null]}>
+                {entry.summary}
+              </Text>
+              <View style={styles.divider} />
+              <Text style={styles.dividerLabel}>대화 원문</Text>
+            </View>
+          ) : null}
           {entry.messages.map((msg, i) => (
             <Bubble
               key={i}
@@ -201,8 +212,23 @@ export default function DiaryDetailScreen() {
   );
 }
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+  summaryCard: {
+    marginHorizontal: Spacing.md, marginBottom: Spacing.md,
+    backgroundColor: Colors.surface, borderRadius: Radius.md,
+    borderLeftWidth: 4, padding: Spacing.lg,
+    shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1, shadowRadius: 6, elevation: 2,
+  },
+  summaryDate: { fontSize: FontSize.xs, color: Colors.textSecondary, marginBottom: Spacing.sm },
+  summaryText: { fontSize: FontSize.md, color: Colors.text, lineHeight: 26 },
+  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.md },
+  dividerLabel: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center' },
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,

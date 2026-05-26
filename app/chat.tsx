@@ -15,7 +15,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Bubble from '../components/Bubble';
 import { ChatMessage, saveDiaryEntry } from '../utils/storage';
-import { sendMessage, makeUserMessage, makeAssistantMessage } from '../utils/ai';
+import { sendMessage, summarizeToDiary, makeUserMessage, makeAssistantMessage } from '../utils/ai';
 import { PERSONAS, PersonaId } from '../constants/personas';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
 
@@ -27,6 +27,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [saving, setSaving] = useState(false);
   const listRef = useRef<FlatList>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -58,12 +59,18 @@ export default function ChatScreen() {
 
   async function handleSave() {
     if (messages.length === 0) return;
-    const firstUserMsg = messages.find((m) => m.role === 'user')?.content ?? '';
-    const title = firstUserMsg.slice(0, 30) + (firstUserMsg.length > 30 ? '...' : '');
-    await saveDiaryEntry({ persona_id: persona.id, title, messages });
-    Alert.alert('저장 완료 ✅', '일기장에 저장되었어요!', [
-      { text: '확인', onPress: () => router.back() },
-    ]);
+    setSaving(true);
+    try {
+      const { title, content } = await summarizeToDiary(messages);
+      await saveDiaryEntry({ persona_id: persona.id, title, summary: content, messages });
+      Alert.alert('일기 저장 완료 ✅', `"${title}"\n\n일기장에 감성 일기로 저장됐어요!`, [
+        { text: '확인', onPress: () => router.back() },
+      ]);
+    } catch {
+      Alert.alert('오류', '일기 저장에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -77,8 +84,10 @@ export default function ChatScreen() {
           <Text style={styles.headerEmoji}>{persona.emoji}</Text>
           <Text style={styles.headerName}>{persona.name}</Text>
         </View>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={messages.length === 0}>
-          <Text style={[styles.saveBtnText, messages.length === 0 && { opacity: 0.3 }]}>저장</Text>
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={messages.length === 0 || saving}>
+          <Text style={[styles.saveBtnText, (messages.length === 0 || saving) && { opacity: 0.3 }]}>
+            {saving ? '저장 중…' : '저장'}
+          </Text>
         </TouchableOpacity>
       </View>
 

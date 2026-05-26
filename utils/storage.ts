@@ -21,9 +21,10 @@ export interface DiaryEntry {
   id: string;
   persona_id: string;
   title: string;
+  summary?: string;        // AI-generated diary text
   messages: ChatMessage[];
   created_at: string;
-  font?: string;           // iOS font family name, undefined = system default
+  font?: string;
   stickers?: PlacedSticker[];
 }
 
