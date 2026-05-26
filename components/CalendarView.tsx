@@ -6,11 +6,12 @@ interface CalendarViewProps {
   markedDates: Record<string, { color: string }[]>;
   onDayPress: (dateStr: string) => void;
   selectedDate?: string;
+  emotionDates?: Record<string, string>; // YYYY-MM-DD → emoji
 }
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function CalendarView({ markedDates, onDayPress, selectedDate }: CalendarViewProps) {
+export default function CalendarView({ markedDates, onDayPress, selectedDate, emotionDates = {} }: CalendarViewProps) {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
 
@@ -60,6 +61,7 @@ export default function CalendarView({ markedDates, onDayPress, selectedDate }: 
           if (!day) return <View key={`e${idx}`} style={styles.cell} />;
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const marks = markedDates[dateStr] ?? [];
+          const emotion = emotionDates[dateStr];
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
           const dow = (firstDay + day - 1) % 7;
@@ -86,13 +88,15 @@ export default function CalendarView({ markedDates, onDayPress, selectedDate }: 
                   {day}
                 </Text>
               </View>
-              {marks.length > 0 && (
+              {emotion ? (
+                <Text style={styles.emotionEmoji}>{emotion}</Text>
+              ) : marks.length > 0 ? (
                 <View style={styles.dots}>
                   {marks.slice(0, 3).map((m, i) => (
                     <View key={i} style={[styles.dot, { backgroundColor: m.color }]} />
                   ))}
                 </View>
-              )}
+              ) : null}
             </TouchableOpacity>
           );
         })}
@@ -125,4 +129,5 @@ const styles = StyleSheet.create({
   sat: { color: '#5C7AE0' },
   dots: { flexDirection: 'row', gap: 2, marginTop: 2 },
   dot: { width: 4, height: 4, borderRadius: 2 },
+  emotionEmoji: { fontSize: 10, marginTop: 1 },
 });

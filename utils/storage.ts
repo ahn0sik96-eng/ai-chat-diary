@@ -25,6 +25,7 @@ export interface DiaryEntry {
   persona_id: string;
   title: string;
   summary?: string;
+  emotionEmoji?: string;
   messages: ChatMessage[];
   created_at: string;
   font?: string;

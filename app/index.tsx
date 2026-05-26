@@ -56,6 +56,17 @@ export default function HomeScreen() {
     return map;
   }, [diaries, schedules, reminders]);
 
+  // Emotion emoji per date (from diary entries)
+  const emotionDates = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const entry of diaries) {
+      if (entry.emotionEmoji) {
+        map[entry.created_at.slice(0, 10)] = entry.emotionEmoji;
+      }
+    }
+    return map;
+  }, [diaries]);
+
   const dateDiaries = useMemo(
     () => diaries.filter((e) => e.created_at.startsWith(selectedDate)),
     [diaries, selectedDate]
@@ -108,6 +119,7 @@ export default function HomeScreen() {
           markedDates={markedDates}
           onDayPress={setSelectedDate}
           selectedDate={selectedDate}
+          emotionDates={emotionDates}
         />
 
         <View style={styles.dateSection}>

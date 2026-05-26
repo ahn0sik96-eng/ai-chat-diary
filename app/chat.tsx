@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -7,14 +7,24 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Bubble from '../components/Bubble';
-import { ChatMessage, saveDiaryEntry, saveSchedule, saveReminder } from '../utils/storage';
+import SchedulePopup, { DetectedSchedule } from '../components/SchedulePopup';
+import {
+  ChatMessage, saveDiaryEntry, saveSchedule, saveReminder,
+  loadSchedules,
+} from '../utils/storage';
 import {
   sendMessage, summarizeToDiary, extractFromChat,
-  makeUserMessage, makeAssistantMessage,
+  generateProactiveOpener, makeUserMessage, makeAssistantMessage,
 } from '../utils/ai';
 import { setupNotifications, scheduleReminderNotification } from '../utils/notifications';
+import { buildProactiveContext, addShortTermEntry } from '../utils/memory';
 import { PERSONAS, PersonaId } from '../constants/personas';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
+
+// Simple regex-based pre-check before calling Gemini extraction
+function mightContainSchedule(text: string): boolean {
+  return /내일|모레|다음\s*주|월요일|화요일|수요일|목요일|금요일|토요일|일요일|\d{1,2}시|\d{1,2}월\s*\d{1,2}일|약속|미팅|회의|예약|방문/.test(text);
+}
 
 export default function ChatScreen() {
   const { personaId } = useLocalSearchParams<{ personaId: PersonaId }>();
@@ -26,10 +36,40 @@ export default function ChatScreen() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingOpener, setLoadingOpener] = useState(true);
+
+  // Schedule popup
+  const [popupSchedules, setPopupSchedules] = useState<DetectedSchedule[]>([]);
+  const [popupVisible, setPopupVisible] = useState(false);
+
   const listRef = useRef<FlatList>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+  }, []);
+
+  // Generate proactive opener on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOpener() {
+      try {
+        const todaySchedules = (await loadSchedules()).filter(
+          (s) => s.date === new Date().toISOString().slice(0, 10)
+        );
+        const context = await buildProactiveContext(
+          todaySchedules.map((s) => ({ title: s.title, time: s.time }))
+        );
+        const opener = await generateProactiveOpener(persona.id, context);
+        if (!cancelled && opener) {
+          const openerMsg = makeAssistantMessage(opener);
+          setMessages([openerMsg]);
+          scrollToBottom();
+        }
+      } catch {}
+      if (!cancelled) setLoadingOpener(false);
+    }
+    loadOpener();
+    return () => { cancelled = true; };
   }, []);
 
   async function handlePickImage() {
@@ -48,10 +88,7 @@ export default function ChatScreen() {
     if (!text && !pendingImage) return;
     if (sending) return;
 
-    const userMsg = makeUserMessage(
-      text || '(사진)',
-      pendingImage ?? undefined
-    );
+    const userMsg = makeUserMessage(text || '(사진)', pendingImage ?? undefined);
     const next = [...messages, userMsg];
     setMessages(next);
     setInput('');
@@ -62,8 +99,14 @@ export default function ChatScreen() {
     try {
       const reply = await sendMessage(persona.id, next);
       const assistantMsg = makeAssistantMessage(reply);
-      setMessages((prev) => [...prev, assistantMsg]);
+      const withReply = [...next, assistantMsg];
+      setMessages(withReply);
       scrollToBottom();
+
+      // Real-time schedule detection (lightweight regex first)
+      if (mightContainSchedule(text)) {
+        detectAndShowPopup(withReply);
+      }
     } catch {
       Alert.alert('오류', '메시지 전송에 실패했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
@@ -71,49 +114,90 @@ export default function ChatScreen() {
     }
   }
 
+  async function detectAndShowPopup(currentMessages: ChatMessage[]) {
+    try {
+      const extracted = await extractFromChat(currentMessages);
+      const detectedItems: DetectedSchedule[] = [
+        ...extracted.schedules.map((s) => ({
+          title: s.title, date: s.date, time: s.time,
+          isReminder: false,
+        })),
+        ...extracted.reminders.map((r) => ({
+          title: r.title,
+          date: r.datetime.slice(0, 10),
+          time: r.datetime.slice(11, 16),
+          isReminder: true,
+        })),
+      ];
+      if (detectedItems.length > 0 && !popupVisible) {
+        setPopupSchedules(detectedItems);
+        setPopupVisible(true);
+      }
+    } catch {}
+  }
+
+  async function handlePopupConfirm(items: DetectedSchedule[]) {
+    setPopupVisible(false);
+    try {
+      for (const item of items) {
+        if (item.isReminder) {
+          await setupNotifications();
+          const dt = `${item.date}T${item.time ?? '09:00'}:00`;
+          const notifId = await scheduleReminderNotification(item.title, dt);
+          await saveReminder({
+            title: item.title, datetime: dt,
+            completed: false, notificationId: notifId || undefined,
+          });
+        } else {
+          await saveSchedule({ title: item.title, date: item.date, time: item.time });
+        }
+      }
+    } catch {}
+  }
+
   async function handleSave() {
-    if (messages.length === 0) return;
+    if (messages.filter((m) => m.role === 'user').length === 0) return;
     setSaving(true);
     try {
-      const [{ title, content }, extracted] = await Promise.all([
+      const [diary, extracted] = await Promise.all([
         summarizeToDiary(messages),
         extractFromChat(messages),
       ]);
 
       const diaryEntry = await saveDiaryEntry({
-        persona_id: persona.id, title, summary: content, messages,
+        persona_id: persona.id,
+        title: diary.title,
+        summary: diary.content,
+        emotionEmoji: diary.emotionEmoji,
+        messages,
       });
 
-      let savedCount = { schedules: 0, reminders: 0 };
+      // Save to short-term memory
+      await addShortTermEntry({
+        date: new Date().toISOString().slice(0, 10),
+        summary: diary.title,
+        emotionEmoji: diary.emotionEmoji,
+        topics: extracted.schedules.map((s) => s.title).slice(0, 3),
+      });
 
+      // Save schedules & reminders not yet saved via popup
+      let extra = 0;
       for (const s of extracted.schedules) {
-        await saveSchedule({
-          title: s.title, date: s.date, time: s.time,
-          sourceDiaryId: diaryEntry.id,
-        });
-        savedCount.schedules++;
+        await saveSchedule({ title: s.title, date: s.date, time: s.time, sourceDiaryId: diaryEntry.id });
+        extra++;
       }
-
-      if (extracted.reminders.length > 0) {
-        await setupNotifications();
-      }
+      if (extracted.reminders.length > 0) await setupNotifications();
       for (const r of extracted.reminders) {
         const notifId = await scheduleReminderNotification(r.title, r.datetime);
         await saveReminder({
-          title: r.title, datetime: r.datetime,
-          completed: false, notificationId: notifId || undefined,
-          sourceDiaryId: diaryEntry.id,
+          title: r.title, datetime: r.datetime, completed: false,
+          notificationId: notifId || undefined, sourceDiaryId: diaryEntry.id,
         });
-        savedCount.reminders++;
+        extra++;
       }
 
-      let msg = `"${title}"\n\n일기가 저장됐어요.`;
-      if (savedCount.schedules > 0 || savedCount.reminders > 0) {
-        const parts = [];
-        if (savedCount.schedules > 0) parts.push(`일정 ${savedCount.schedules}개`);
-        if (savedCount.reminders > 0) parts.push(`할 일 ${savedCount.reminders}개`);
-        msg += `\n${parts.join(', ')}도 캘린더에 추가됐어요.`;
-      }
+      let msg = `"${diary.title}"\n\n일기가 저장됐어요.`;
+      if (extra > 0) msg += `\n일정 ${extra}개도 캘린더에 추가됐어요.`;
 
       Alert.alert('저장 완료', msg, [
         { text: '확인', onPress: () => router.back() },
@@ -125,6 +209,8 @@ export default function ChatScreen() {
     }
   }
 
+  const canSave = messages.filter((m) => m.role === 'user').length > 0;
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -135,12 +221,8 @@ export default function ChatScreen() {
           <Text style={styles.headerEmoji}>{persona.emoji}</Text>
           <Text style={styles.headerName}>{persona.name}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.saveBtn}
-          onPress={handleSave}
-          disabled={messages.length === 0 || saving}
-        >
-          <Text style={[styles.saveBtnText, (messages.length === 0 || saving) && styles.saveBtnDisabled]}>
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={!canSave || saving}>
+          <Text style={[styles.saveBtnText, (!canSave || saving) && styles.saveBtnDisabled]}>
             {saving ? '저장 중' : '저장'}
           </Text>
         </TouchableOpacity>
@@ -149,7 +231,6 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
       >
         <FlatList
           ref={listRef}
@@ -167,21 +248,24 @@ export default function ChatScreen() {
           )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>{persona.emoji}</Text>
-              <Text style={styles.emptyName}>{persona.name}</Text>
-              <Text style={styles.emptyText}>편하게 오늘 하루 얘기해줘</Text>
-            </View>
+            loadingOpener ? (
+              <View style={styles.empty}>
+                <ActivityIndicator size="small" color={Colors.textMuted} />
+              </View>
+            ) : (
+              <View style={styles.empty}>
+                <Text style={styles.emptyEmoji}>{persona.emoji}</Text>
+                <Text style={styles.emptyName}>{persona.name}</Text>
+                <Text style={styles.emptyText}>편하게 오늘 하루 얘기해줘</Text>
+              </View>
+            )
           }
         />
 
         {pendingImage && (
           <View style={styles.previewRow}>
             <Image source={{ uri: pendingImage }} style={styles.previewImage} />
-            <TouchableOpacity
-              style={styles.previewClose}
-              onPress={() => setPendingImage(null)}
-            >
+            <TouchableOpacity style={styles.previewClose} onPress={() => setPendingImage(null)}>
               <Text style={styles.previewCloseText}>×</Text>
             </TouchableOpacity>
           </View>
@@ -218,6 +302,13 @@ export default function ChatScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      <SchedulePopup
+        visible={popupVisible}
+        schedules={popupSchedules}
+        onConfirm={handlePopupConfirm}
+        onDismiss={() => setPopupVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -261,8 +352,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end',
     padding: Spacing.md, borderTopWidth: 1,
-    borderTopColor: Colors.border, backgroundColor: Colors.surface,
-    gap: Spacing.sm,
+    borderTopColor: Colors.border, backgroundColor: Colors.surface, gap: Spacing.sm,
   },
   photoBtn: {
     width: 40, height: 40, borderRadius: Radius.full,
