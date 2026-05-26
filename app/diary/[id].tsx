@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated, Image, PanResponder, SafeAreaView,
-  ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
   ActivityIndicator, Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -148,7 +148,12 @@ function SpiralRings({ height }: { height: number }) {
       <View key={y} style={[styles.spiralRing, { top: y - 10 }]} />
     );
   }
-  return <View pointerEvents="none">{rings}</View>;
+  // Must be absolutely positioned to escape the page's paddingLeft: 56
+  return (
+    <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 44 }} pointerEvents="none">
+      {rings}
+    </View>
+  );
 }
 
 // ─── Main component ───────────────────────────────────────────────────────
@@ -165,6 +170,7 @@ export default function DiaryDetailScreen() {
   const [unlockedPackIds, setUnlockedPackIds] = useState<string[]>([]);
   const [unlockedFontIds, setUnlockedFontIds] = useState<string[]>([]);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [summaryText, setSummaryText] = useState('');
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const [saving, setSaving] = useState(false);
   const [processingPhoto, setProcessingPhoto] = useState(false);
@@ -183,6 +189,7 @@ export default function DiaryDetailScreen() {
     setEntry(found);
     setStickers(found.stickers ?? []);
     setSelectedFont(found.font);
+    setSummaryText(found.summary ?? '');
 
     const unlockedPacks = STORE_ITEMS
       .filter((i) => i.type === 'sticker' && purchased.includes(i.id))
@@ -197,7 +204,8 @@ export default function DiaryDetailScreen() {
   async function handleSave() {
     if (!entry) return;
     setSaving(true);
-    await updateDiaryDecoration(entry.id, { font: selectedFont, stickers });
+    await updateDiaryDecoration(entry.id, { font: selectedFont, stickers, summary: summaryText });
+    setEntry((prev) => prev ? { ...prev, summary: summaryText } : null);
     setSaving(false);
     Alert.alert('저장 완료', '꾸미기가 저장되었어요.');
     setMode('read');
@@ -367,7 +375,21 @@ export default function DiaryDetailScreen() {
           {/* Diary content (diary tab or decorate mode) */}
           {(mode === 'decorate' || tab === 'diary') && (
             <View style={styles.diaryContent}>
-              {entry.summary ? (
+              {mode === 'decorate' ? (
+                <TextInput
+                  value={summaryText}
+                  onChangeText={setSummaryText}
+                  multiline
+                  scrollEnabled={false}
+                  placeholder="일기를 입력해 보세요"
+                  placeholderTextColor={Colors.textMuted}
+                  style={[
+                    styles.diaryText,
+                    styles.diaryInput,
+                    selectedFont ? { fontFamily: selectedFont } : null,
+                  ]}
+                />
+              ) : entry.summary ? (
                 <Text style={[
                   styles.diaryText,
                   selectedFont ? { fontFamily: selectedFont } : null,
@@ -560,6 +582,11 @@ const styles = StyleSheet.create({
     color: '#1C1C1E',
     lineHeight: 32,
     letterSpacing: 0.2,
+  },
+  diaryInput: {
+    padding: 0,
+    textAlignVertical: 'top',
+    minHeight: 200,
   },
   noSummaryText: {
     fontSize: FontSize.sm,

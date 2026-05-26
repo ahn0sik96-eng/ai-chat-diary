@@ -77,7 +77,7 @@ export async function loadDiaryEntries(): Promise<DiaryEntry[]> {
 
 export async function updateDiaryDecoration(
   id: string,
-  patch: { font?: string; stickers?: PlacedSticker[] }
+  patch: { font?: string; stickers?: PlacedSticker[]; summary?: string }
 ): Promise<void> {
   const all = await loadDiaryEntries();
   const updated = all.map((e) => (e.id === id ? { ...e, ...patch } : e));
