@@ -10,6 +10,7 @@ import {
   loadDiaryEntries, loadSchedules, loadReminders,
   toggleReminder, deleteSchedule, deleteReminder,
 } from '../utils/storage';
+import { getDeviceCalendarEvents, DeviceCalendarEvent, formatEventTime } from '../utils/calendar';
 import { PERSONAS, PersonaId, DEFAULT_PERSONA_ID } from '../constants/personas';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
 import { setupNotifications } from '../utils/notifications';
@@ -26,6 +27,7 @@ export default function HomeScreen() {
   const [diaries, setDiaries] = useState<DiaryEntry[]>([]);
   const [schedules, setSchedules] = useState<ScheduleEvent[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [deviceEvents, setDeviceEvents] = useState<DeviceCalendarEvent[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,6 +35,13 @@ export default function HomeScreen() {
         .then(([d, s, r]) => { setDiaries(d); setSchedules(s); setReminders(r); });
     }, [])
   );
+
+  // Load device calendar events when date changes
+  useEffect(() => {
+    getDeviceCalendarEvents(new Date(selectedDate + 'T00:00:00'))
+      .then(setDeviceEvents)
+      .catch(() => setDeviceEvents([]));
+  }, [selectedDate]);
 
   useEffect(() => { setupNotifications(); }, []);
 
@@ -110,7 +119,7 @@ export default function HomeScreen() {
   }
 
   const persona = PERSONAS.find((p) => p.id === selectedPersona)!;
-  const hasContent = dateDiaries.length > 0 || dateSchedules.length > 0 || dateReminders.length > 0;
+  const hasContent = dateDiaries.length > 0 || dateSchedules.length > 0 || dateReminders.length > 0 || deviceEvents.length > 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -181,6 +190,21 @@ export default function HomeScreen() {
                     {reminder.title}
                   </Text>
                 </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {deviceEvents.length > 0 && (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionTitle}>기기 캘린더</Text>
+              {deviceEvents.map((event) => (
+                <View key={event.id} style={styles.scheduleRow}>
+                  <View style={[styles.scheduleDot, { backgroundColor: '#7CB9A8' }]} />
+                  <Text style={styles.scheduleTitle}>{event.title}</Text>
+                  {!event.allDay && (
+                    <Text style={styles.scheduleTime}>{formatEventTime(event.startDate)}</Text>
+                  )}
+                </View>
               ))}
             </View>
           )}

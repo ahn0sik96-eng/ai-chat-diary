@@ -18,6 +18,7 @@ export interface PlacedSticker {
   xPct: number;
   yPct: number;
   size: number;
+  imageUri?: string;  // for photo stickers (background-removed PNG)
 }
 
 export interface DiaryEntry {

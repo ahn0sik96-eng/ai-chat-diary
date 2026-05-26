@@ -55,15 +55,18 @@ export async function saveLongTermMemory(memory: LongTermMemory): Promise<void> 
 
 export interface ProactiveContext {
   todaySchedules: { title: string; time?: string }[];
-  recentMood: string;       // 최근 이모지
+  recentMood: string;
   recentTopics: string[];
   userSummary: string;
   dayOfWeek: string;
   todayDate: string;
+  weatherContext?: string;  // e.g. "오늘 많이 더웠는데"
+  stepsContext?: string;    // e.g. "오늘 많이 돌아다녔네!"
 }
 
 export async function buildProactiveContext(
-  todaySchedules: { title: string; time?: string }[]
+  todaySchedules: { title: string; time?: string }[],
+  extra?: { weatherContext?: string; stepsContext?: string }
 ): Promise<ProactiveContext> {
   const [shortTerm, longTerm] = await Promise.all([
     loadShortTermMemory(),
@@ -81,6 +84,8 @@ export async function buildProactiveContext(
     userSummary: longTerm?.summary ?? '',
     dayOfWeek: dayNames[now.getDay()],
     todayDate: now.toISOString().slice(0, 10),
+    weatherContext: extra?.weatherContext,
+    stepsContext: extra?.stepsContext,
   };
 }
 
@@ -108,6 +113,14 @@ export function formatContextForPrompt(ctx: ProactiveContext): string {
 
   if (ctx.userSummary) {
     parts.push(`사용자 특징: ${ctx.userSummary}`);
+  }
+
+  if (ctx.weatherContext) {
+    parts.push(`날씨: ${ctx.weatherContext}`);
+  }
+
+  if (ctx.stepsContext) {
+    parts.push(`활동: ${ctx.stepsContext}`);
   }
 
   return parts.join('\n');

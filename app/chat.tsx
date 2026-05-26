@@ -10,14 +10,15 @@ import Bubble from '../components/Bubble';
 import SchedulePopup, { DetectedSchedule } from '../components/SchedulePopup';
 import {
   ChatMessage, saveDiaryEntry, saveSchedule, saveReminder,
-  loadSchedules,
 } from '../utils/storage';
 import {
   sendMessage, summarizeToDiary, extractFromChat,
   generateProactiveOpener, makeUserMessage, makeAssistantMessage,
 } from '../utils/ai';
 import { setupNotifications, scheduleReminderNotification } from '../utils/notifications';
-import { buildProactiveContext, addShortTermEntry } from '../utils/memory';
+import { addShortTermEntry } from '../utils/memory';
+import { addEventToDeviceCalendar } from '../utils/calendar';
+import { useProactiveContext } from '../hooks/useProactiveContext';
 import { PERSONAS, PersonaId } from '../constants/personas';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
 
@@ -36,41 +37,32 @@ export default function ChatScreen() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [loadingOpener, setLoadingOpener] = useState(true);
+  const [openerShown, setOpenerShown] = useState(false);
 
   // Schedule popup
   const [popupSchedules, setPopupSchedules] = useState<DetectedSchedule[]>([]);
   const [popupVisible, setPopupVisible] = useState(false);
 
   const listRef = useRef<FlatList>(null);
+  const { context: proactiveContext, loading: loadingOpener } = useProactiveContext();
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
 
-  // Generate proactive opener on mount
+  // Generate proactive opener once context is ready
   useEffect(() => {
+    if (loadingOpener || openerShown || !proactiveContext) return;
+    setOpenerShown(true);
     let cancelled = false;
-    async function loadOpener() {
-      try {
-        const todaySchedules = (await loadSchedules()).filter(
-          (s) => s.date === new Date().toISOString().slice(0, 10)
-        );
-        const context = await buildProactiveContext(
-          todaySchedules.map((s) => ({ title: s.title, time: s.time }))
-        );
-        const opener = await generateProactiveOpener(persona.id, context);
-        if (!cancelled && opener) {
-          const openerMsg = makeAssistantMessage(opener);
-          setMessages([openerMsg]);
-          scrollToBottom();
-        }
-      } catch {}
-      if (!cancelled) setLoadingOpener(false);
-    }
-    loadOpener();
+    generateProactiveOpener(persona.id, proactiveContext).then((opener) => {
+      if (!cancelled && opener) {
+        setMessages([makeAssistantMessage(opener)]);
+        scrollToBottom();
+      }
+    }).catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [loadingOpener]);
 
   async function handlePickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -150,6 +142,7 @@ export default function ChatScreen() {
           });
         } else {
           await saveSchedule({ title: item.title, date: item.date, time: item.time });
+          addEventToDeviceCalendar(item.title, item.date, item.time); // fire-and-forget
         }
       }
     } catch {}

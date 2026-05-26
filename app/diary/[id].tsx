@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Alert, LayoutChangeEvent,
+  SafeAreaView, Alert, LayoutChangeEvent, Image, ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   DiaryEntry, PlacedSticker, loadDiaryEntries, updateDiaryDecoration,
   loadPurchasedIds,
 } from '../../utils/storage';
+import { removeBackground } from '../../utils/imageProcessing';
 import { PERSONAS } from '../../constants/personas';
 import { FONTS, STORE_ITEMS } from '../../constants/decorations';
 import { Colors, Radius, Spacing, FontSize } from '../../constants/theme';
@@ -31,6 +33,7 @@ export default function DiaryDetailScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const [saving, setSaving] = useState(false);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -73,6 +76,30 @@ export default function DiaryDetailScreen() {
       xPct: 15 + Math.random() * 65,
       yPct: 10 + Math.random() * 70,
       size: 36,
+    };
+    setStickers((prev) => [...prev, newSticker]);
+  }
+
+  async function handlePickPhotoSticker() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    setProcessingPhoto(true);
+    const cutout = await removeBackground(result.assets[0].uri);
+    setProcessingPhoto(false);
+
+    const imageUri = cutout ?? result.assets[0].uri;
+    const newSticker: PlacedSticker = {
+      id: Date.now().toString(),
+      emoji: '',
+      imageUri,
+      xPct: 20 + Math.random() * 55,
+      yPct: 15 + Math.random() * 60,
+      size: 80,
     };
     setStickers((prev) => [...prev, newSticker]);
   }
@@ -161,6 +188,13 @@ export default function DiaryDetailScreen() {
           <TouchableOpacity style={styles.stickerAddBtn} onPress={() => setPickerVisible(true)}>
             <Text style={styles.stickerAddText}>스티커</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={[styles.stickerAddBtn, { marginLeft: 0 }]} onPress={handlePickPhotoSticker} disabled={processingPhoto}>
+            {processingPhoto ? (
+              <ActivityIndicator size="small" color={Colors.textSecondary} />
+            ) : (
+              <Text style={styles.stickerAddText}>사진</Text>
+            )}
+          </TouchableOpacity>
         </View>
       )}
 
@@ -220,7 +254,11 @@ export default function DiaryDetailScreen() {
             onLongPress={() => removeSticker(s.id)}
             activeOpacity={0.7}
           >
-            <Text style={{ fontSize: s.size }}>{s.emoji}</Text>
+            {s.imageUri ? (
+              <Image source={{ uri: s.imageUri }} style={{ width: s.size, height: s.size }} resizeMode="contain" />
+            ) : (
+              <Text style={{ fontSize: s.size }}>{s.emoji}</Text>
+            )}
           </TouchableOpacity>
         ))}
 
@@ -237,7 +275,11 @@ export default function DiaryDetailScreen() {
             ]}
             pointerEvents="none"
           >
-            <Text style={{ fontSize: s.size }}>{s.emoji}</Text>
+            {s.imageUri ? (
+              <Image source={{ uri: s.imageUri }} style={{ width: s.size, height: s.size }} resizeMode="contain" />
+            ) : (
+              <Text style={{ fontSize: s.size }}>{s.emoji}</Text>
+            )}
           </View>
         ))}
 

@@ -1,4 +1,4 @@
-import { readAsStringAsync } from 'expo-file-system';
+import { readAsStringAsync } from 'expo-file-system/legacy';
 import { ChatMessage } from './storage';
 import { PERSONAS, PersonaId } from '../constants/personas';
 import { PERSONA_PROMPTS, TASK_PROMPTS } from '../constants/prompts';
