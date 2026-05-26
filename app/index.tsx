@@ -24,37 +24,30 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>안녕하세요 🌸</Text>
-          <Text style={styles.subtitle}>오늘 하루 어떠셨나요?</Text>
+          <Text style={styles.greeting}>오늘 어떤 하루였어?</Text>
+          <Text style={styles.subtitle}>대화 상대를 골라봐</Text>
         </View>
 
-        {/* Persona selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>대화 상대를 선택해 주세요</Text>
-          <PersonaSelector
-            selected={selectedPersona}
-            onSelect={setSelectedPersona}
-          />
-        </View>
+        <PersonaSelector
+          selected={selectedPersona}
+          onSelect={setSelectedPersona}
+        />
 
-        {/* Selected persona info */}
-        <View
-          style={[styles.infoCard, { backgroundColor: persona.accentLight }]}
-        >
-          <Text style={styles.infoEmoji}>{persona.emoji}</Text>
+        <View style={[styles.infoCard, { backgroundColor: persona.accentLight }]}>
+          <View style={styles.infoLeft}>
+            <Text style={styles.infoEmoji}>{persona.emoji}</Text>
+          </View>
           <View style={styles.infoText}>
             <Text style={styles.infoName}>{persona.name}</Text>
             <Text style={styles.infoDesc}>{persona.description}</Text>
           </View>
         </View>
 
-        {/* CTA */}
         <TouchableOpacity
           style={[styles.startButton, { backgroundColor: persona.accentColor }]}
           onPress={startChat}
-          activeOpacity={0.85}
+          activeOpacity={0.82}
         >
           <Text style={styles.startButtonText}>대화 시작하기</Text>
         </TouchableOpacity>
@@ -68,22 +61,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: Spacing.lg },
   header: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.xl },
   greeting: {
-    fontSize: FontSize.title,
+    fontSize: FontSize.xxl,
     fontWeight: '700',
     color: Colors.text,
     marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
   },
-  subtitle: { fontSize: FontSize.lg, color: Colors.textSecondary },
-  section: { marginBottom: Spacing.lg },
-  sectionLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
+  subtitle: { fontSize: FontSize.md, color: Colors.textSecondary },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,11 +75,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.xl,
+    marginTop: Spacing.sm,
   },
-  infoEmoji: { fontSize: 36, marginRight: Spacing.md },
+  infoLeft: { marginRight: Spacing.md },
+  infoEmoji: { fontSize: 32 },
   infoText: { flex: 1 },
   infoName: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: '600',
     color: Colors.text,
     marginBottom: 2,
@@ -104,17 +90,13 @@ const styles = StyleSheet.create({
   startButton: {
     marginHorizontal: Spacing.lg,
     borderRadius: Radius.full,
-    paddingVertical: Spacing.md + 2,
+    paddingVertical: Spacing.md + 4,
     alignItems: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 4,
   },
   startButtonText: {
-    fontSize: FontSize.lg,
-    fontWeight: '700',
+    fontSize: FontSize.md,
+    fontWeight: '600',
     color: Colors.text,
+    letterSpacing: 0.2,
   },
 });

@@ -1,34 +1,37 @@
 export const Colors = {
-  background: '#FFFAF8',
+  background: '#F9F8F6',
   surface: '#FFFFFF',
-  text: '#333333',
-  textSecondary: '#888888',
-  textMuted: '#BBBBBB',
+  text: '#1C1C1E',
+  textSecondary: '#6C6C70',
+  textMuted: '#AEAEB2',
 
-  peach: '#FFDAB9',
-  peachLight: '#FFF0E6',
-  peachDark: '#E8B89A',
+  // Persona accents — muted, sophisticated
+  peach: '#E8C4B0',
+  peachLight: '#FBF3EE',
+  peachDark: '#A07055',
 
-  lavender: '#E6E6FA',
-  lavenderLight: '#F5F5FF',
-  lavenderDark: '#C8C8E8',
+  lavender: '#BFC0D6',
+  lavenderLight: '#F2F2F8',
+  lavenderDark: '#6B6D9A',
 
-  mint: '#F5FFFA',
-  mintLight: '#FAFFFC',
-  mintDark: '#C8ECD8',
+  mint: '#B2CAC2',
+  mintLight: '#EEF5F2',
+  mintDark: '#4D7A6D',
 
-  gray: '#F0F0F0',
-  grayLight: '#F8F8F8',
-  grayDark: '#AAAAAA',
+  gray: '#E5E5EA',
+  grayLight: '#F5F5F7',
+  grayDark: '#8E8E93',
 
-  border: '#EEEEEE',
+  border: '#E5E5EA',
+  divider: '#F2F2F7',
   shadow: 'rgba(0,0,0,0.06)',
 };
 
 export const Radius = {
-  sm: 12,
-  md: 16,
-  lg: 24,
+  sm: 8,
+  md: 12,
+  lg: 18,
+  xl: 24,
   full: 9999,
 };
 
@@ -48,5 +51,5 @@ export const FontSize = {
   lg: 17,
   xl: 20,
   xxl: 24,
-  title: 28,
+  title: 26,
 };

@@ -42,8 +42,8 @@ export default function StoreScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.title}>스토어 🛍️</Text>
-        <Text style={styles.subtitle}>구매 후 일기를 꾸며보세요</Text>
+        <Text style={styles.title}>스토어</Text>
+        <Text style={styles.subtitle}>일기를 나만의 스타일로 꾸며봐</Text>
       </View>
 
       <View style={styles.tabs}>
@@ -54,7 +54,7 @@ export default function StoreScreen() {
             onPress={() => setTab(t)}
           >
             <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === 'font' ? '✍️ 폰트' : '🌸 스티커'}
+              {t === 'font' ? '폰트' : '스티커'}
             </Text>
           </TouchableOpacity>
         ))}

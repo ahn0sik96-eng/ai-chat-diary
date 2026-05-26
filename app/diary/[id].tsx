@@ -15,6 +15,7 @@ import StickerPicker from '../../components/StickerPicker';
 import Bubble from '../../components/Bubble';
 
 type Mode = 'read' | 'decorate';
+type Tab = 'diary' | 'chat';
 
 export default function DiaryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,6 +23,7 @@ export default function DiaryDetailScreen() {
 
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [mode, setMode] = useState<Mode>('read');
+  const [tab, setTab] = useState<Tab>('diary');
   const [stickers, setStickers] = useState<PlacedSticker[]>([]);
   const [selectedFont, setSelectedFont] = useState<string | undefined>(undefined);
   const [unlockedPackIds, setUnlockedPackIds] = useState<string[]>([]);
@@ -60,7 +62,7 @@ export default function DiaryDetailScreen() {
     setSaving(true);
     await updateDiaryDecoration(entry.id, { font: selectedFont, stickers });
     setSaving(false);
-    Alert.alert('저장 완료 ✅', '꾸미기가 저장되었어요!');
+    Alert.alert('저장 완료', '꾸미기가 저장되었어요.');
     setMode('read');
   }
 
@@ -103,22 +105,38 @@ export default function DiaryDetailScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{entry.title || '일기'}</Text>
         {mode === 'read' ? (
-          <TouchableOpacity style={styles.editBtn} onPress={() => setMode('decorate')}>
-            <Text style={styles.editBtnText}>꾸미기 ✏️</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setMode('decorate')}>
+            <Text style={styles.actionBtnText}>꾸미기</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.editBtn} onPress={handleSave} disabled={saving}>
-            <Text style={styles.editBtnText}>{saving ? '저장 중…' : '완료 ✅'}</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleSave} disabled={saving}>
+            <Text style={styles.actionBtnText}>{saving ? '저장 중' : '완료'}</Text>
           </TouchableOpacity>
         )}
       </View>
 
+      {/* Tabs (read mode only) */}
+      {mode === 'read' && (
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, tab === 'diary' && styles.tabActive]}
+            onPress={() => setTab('diary')}
+          >
+            <Text style={[styles.tabText, tab === 'diary' && styles.tabTextActive]}>일기</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, tab === 'chat' && styles.tabActive]}
+            onPress={() => setTab('chat')}
+          >
+            <Text style={[styles.tabText, tab === 'chat' && styles.tabTextActive]}>대화</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Decorate toolbar */}
       {mode === 'decorate' && (
         <View style={styles.toolbar}>
-          {/* Font picker */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fontScroll}>
-            {/* System default */}
             <TouchableOpacity
               style={[styles.fontChip, !selectedFont && styles.fontChipActive]}
               onPress={() => setSelectedFont(undefined)}
@@ -140,45 +158,56 @@ export default function DiaryDetailScreen() {
               <Text style={styles.noItemHint}>스토어에서 폰트를 구매해 보세요</Text>
             )}
           </ScrollView>
-
-          {/* Sticker button */}
           <TouchableOpacity style={styles.stickerAddBtn} onPress={() => setPickerVisible(true)}>
-            <Text style={styles.stickerAddText}>🌸 스티커</Text>
+            <Text style={styles.stickerAddText}>스티커</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Canvas: summary + chat bubbles + placed stickers */}
+      {/* Canvas */}
       <View style={styles.canvas} onLayout={onCanvasLayout}>
-        <ScrollView contentContainerStyle={styles.bubbleList}>
-          {/* AI-generated diary summary */}
-          {entry.summary ? (
-            <View style={[styles.summaryCard, { borderLeftColor: persona?.accentColor ?? Colors.peach }]}>
-              <Text style={styles.summaryDate}>{formatDate(entry.created_at)}</Text>
-              <Text style={[styles.summaryText, selectedFont ? { fontFamily: selectedFont } : null]}>
-                {entry.summary}
-              </Text>
-              <View style={styles.divider} />
-              <Text style={styles.dividerLabel}>대화 원문</Text>
-            </View>
-          ) : null}
-          {entry.messages.map((msg, i) => (
-            <Bubble
-              key={i}
-              role={msg.role}
-              content={msg.content}
-              accentColor={persona?.accentColor}
-              accentLight={persona?.accentLight}
-              timestamp={msg.timestamp}
-              fontFamily={selectedFont}
-            />
-          ))}
-          {/* Bottom padding so stickers don't overlap last bubble */}
-          <View style={{ height: 120 }} />
-        </ScrollView>
+        {/* Diary tab: summary only */}
+        {(mode === 'decorate' || tab === 'diary') && (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {entry.summary ? (
+              <View style={[styles.summaryCard, { borderLeftColor: persona?.accentColor ?? Colors.peach }]}>
+                <Text style={styles.summaryDate}>{formatDate(entry.created_at)}</Text>
+                <View style={[styles.personaTag, { backgroundColor: persona?.accentLight ?? Colors.peachLight }]}>
+                  <Text style={styles.personaTagText}>{persona?.name ?? '친구'}</Text>
+                </View>
+                <Text style={[styles.summaryText, selectedFont ? { fontFamily: selectedFont } : null]}>
+                  {entry.summary}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.noSummary}>
+                <Text style={styles.noSummaryText}>요약된 일기가 없어요.</Text>
+              </View>
+            )}
+            <View style={{ height: 120 }} />
+          </ScrollView>
+        )}
 
-        {/* Placed stickers (absolute layer) */}
-        {stickers.map((s) => (
+        {/* Chat tab: messages only */}
+        {mode === 'read' && tab === 'chat' && (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {entry.messages.map((msg, i) => (
+              <Bubble
+                key={i}
+                role={msg.role}
+                content={msg.content}
+                accentColor={persona?.accentColor}
+                accentLight={persona?.accentLight}
+                timestamp={msg.timestamp}
+                fontFamily={selectedFont}
+              />
+            ))}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        )}
+
+        {/* Placed stickers (absolute layer, only in decorate mode) */}
+        {mode === 'decorate' && stickers.map((s) => (
           <TouchableOpacity
             key={s.id}
             style={[
@@ -188,16 +217,33 @@ export default function DiaryDetailScreen() {
                 top:  (s.yPct / 100) * (canvasSize.h || 400) - s.size / 2,
               },
             ]}
-            onLongPress={() => mode === 'decorate' && removeSticker(s.id)}
-            activeOpacity={mode === 'decorate' ? 0.7 : 1}
+            onLongPress={() => removeSticker(s.id)}
+            activeOpacity={0.7}
           >
             <Text style={{ fontSize: s.size }}>{s.emoji}</Text>
           </TouchableOpacity>
         ))}
 
+        {/* Stickers in read/diary mode (non-interactive) */}
+        {mode === 'read' && tab === 'diary' && stickers.map((s) => (
+          <View
+            key={s.id}
+            style={[
+              styles.sticker,
+              {
+                left: (s.xPct / 100) * canvasSize.w - s.size / 2,
+                top:  (s.yPct / 100) * (canvasSize.h || 400) - s.size / 2,
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={{ fontSize: s.size }}>{s.emoji}</Text>
+          </View>
+        ))}
+
         {mode === 'decorate' && stickers.length === 0 && (
           <View style={styles.hint} pointerEvents="none">
-            <Text style={styles.hintText}>스티커를 추가해 보세요 🌸{'\n'}꾹 누르면 삭제됩니다</Text>
+            <Text style={styles.hintText}>스티커를 추가해 보세요{'\n'}길게 누르면 삭제됩니다</Text>
           </View>
         )}
       </View>
@@ -213,22 +259,13 @@ export default function DiaryDetailScreen() {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  return new Date(iso).toLocaleDateString('ko-KR', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
+  });
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  summaryCard: {
-    marginHorizontal: Spacing.md, marginBottom: Spacing.md,
-    backgroundColor: Colors.surface, borderRadius: Radius.md,
-    borderLeftWidth: 4, padding: Spacing.lg,
-    shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1, shadowRadius: 6, elevation: 2,
-  },
-  summaryDate: { fontSize: FontSize.xs, color: Colors.textSecondary, marginBottom: Spacing.sm },
-  summaryText: { fontSize: FontSize.md, color: Colors.text, lineHeight: 26 },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.md },
-  dividerLabel: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center' },
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
@@ -238,8 +275,20 @@ const styles = StyleSheet.create({
   backBtn: { width: 40 },
   backText: { fontSize: FontSize.xl, color: Colors.text },
   headerTitle: { flex: 1, fontSize: FontSize.md, fontWeight: '600', color: Colors.text, textAlign: 'center' },
-  editBtn: { width: 72, alignItems: 'flex-end' },
-  editBtnText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.peachDark },
+  actionBtn: { width: 60, alignItems: 'flex-end' },
+  actionBtnText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.peachDark },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  tab: {
+    flex: 1, paddingVertical: Spacing.sm + 2, alignItems: 'center',
+    borderBottomWidth: 2, borderBottomColor: 'transparent',
+  },
+  tabActive: { borderBottomColor: Colors.peachDark },
+  tabText: { fontSize: FontSize.sm, fontWeight: '500', color: Colors.textMuted },
+  tabTextActive: { color: Colors.peachDark, fontWeight: '600' },
   toolbar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: Colors.surface, borderBottomWidth: 1,
@@ -248,7 +297,7 @@ const styles = StyleSheet.create({
   fontScroll: { flex: 1, paddingHorizontal: Spacing.md },
   fontChip: {
     paddingHorizontal: Spacing.md, paddingVertical: 6,
-    borderRadius: Radius.full, borderWidth: 1.5,
+    borderRadius: Radius.full, borderWidth: 1,
     borderColor: Colors.border, marginRight: Spacing.sm,
     backgroundColor: Colors.grayLight,
   },
@@ -257,16 +306,33 @@ const styles = StyleSheet.create({
   noItemHint: { fontSize: FontSize.xs, color: Colors.textMuted, alignSelf: 'center' },
   stickerAddBtn: {
     marginRight: Spacing.md, paddingHorizontal: Spacing.md,
-    paddingVertical: 6, backgroundColor: Colors.peachLight,
-    borderRadius: Radius.full,
+    paddingVertical: 6, backgroundColor: Colors.grayLight,
+    borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border,
   },
-  stickerAddText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.text },
+  stickerAddText: { fontSize: FontSize.sm, color: Colors.text },
   canvas: { flex: 1, position: 'relative' },
-  bubbleList: { paddingVertical: Spacing.md },
+  scrollContent: { paddingVertical: Spacing.lg },
+  summaryCard: {
+    marginHorizontal: Spacing.md, marginBottom: Spacing.md,
+    backgroundColor: Colors.surface, borderRadius: Radius.md,
+    borderLeftWidth: 3, padding: Spacing.lg,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
+  summaryDate: { fontSize: FontSize.xs, color: Colors.textMuted, marginBottom: Spacing.sm },
+  personaTag: {
+    alignSelf: 'flex-start', borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm, paddingVertical: 2,
+    marginBottom: Spacing.md,
+  },
+  personaTagText: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: '500' },
+  summaryText: { fontSize: FontSize.md, color: Colors.text, lineHeight: 28 },
+  noSummary: { alignItems: 'center', paddingTop: 60 },
+  noSummaryText: { fontSize: FontSize.sm, color: Colors.textMuted },
   sticker: { position: 'absolute', zIndex: 10 },
   hint: {
-    position: 'absolute', bottom: 140, left: 0, right: 0,
-    alignItems: 'center', pointerEvents: 'none',
+    position: 'absolute', bottom: 120, left: 0, right: 0,
+    alignItems: 'center',
   },
   hintText: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', lineHeight: 22 },
 });

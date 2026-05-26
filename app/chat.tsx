@@ -63,7 +63,7 @@ export default function ChatScreen() {
     try {
       const { title, content } = await summarizeToDiary(messages);
       await saveDiaryEntry({ persona_id: persona.id, title, summary: content, messages });
-      Alert.alert('일기 저장 완료 ✅', `"${title}"\n\n일기장에 감성 일기로 저장됐어요!`, [
+      Alert.alert('저장 완료', `"${title}"\n\n일기장에 저장됐어요.`, [
         { text: '확인', onPress: () => router.back() },
       ]);
     } catch {
@@ -74,8 +74,7 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: Colors.background }]}>
-      {/* Header */}
+    <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
@@ -84,9 +83,13 @@ export default function ChatScreen() {
           <Text style={styles.headerEmoji}>{persona.emoji}</Text>
           <Text style={styles.headerName}>{persona.name}</Text>
         </View>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={messages.length === 0 || saving}>
-          <Text style={[styles.saveBtnText, (messages.length === 0 || saving) && { opacity: 0.3 }]}>
-            {saving ? '저장 중…' : '저장'}
+        <TouchableOpacity
+          style={styles.saveBtn}
+          onPress={handleSave}
+          disabled={messages.length === 0 || saving}
+        >
+          <Text style={[styles.saveBtnText, (messages.length === 0 || saving) && styles.saveBtnDisabled]}>
+            {saving ? '저장 중' : '저장'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -113,9 +116,8 @@ export default function ChatScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>{persona.emoji}</Text>
-              <Text style={styles.emptyText}>
-                안녕하세요! 오늘 하루 어떠셨나요?{'\n'}무슨 이야기든 편하게 해주세요 🌸
-              </Text>
+              <Text style={styles.emptyName}>{persona.name}</Text>
+              <Text style={styles.emptyText}>편하게 오늘 하루 얘기해줘</Text>
             </View>
           }
         />
@@ -125,22 +127,22 @@ export default function ChatScreen() {
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder="오늘 하루를 이야기해 주세요..."
+            placeholder="오늘 어땠어?"
             placeholderTextColor={Colors.textMuted}
             multiline
             maxLength={500}
           />
           {sending ? (
-            <View style={styles.sendBtn}>
-              <ActivityIndicator size="small" color={Colors.text} />
+            <View style={[styles.sendBtn, { backgroundColor: Colors.grayLight }]}>
+              <ActivityIndicator size="small" color={Colors.textSecondary} />
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.sendBtn, { backgroundColor: persona.accentColor }]}
+              style={[styles.sendBtn, { backgroundColor: input.trim() ? persona.accentColor : Colors.grayLight }]}
               onPress={handleSend}
               disabled={!input.trim()}
             >
-              <Text style={styles.sendIcon}>→</Text>
+              <Text style={styles.sendIcon}>↑</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -150,7 +152,7 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -170,25 +172,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  headerEmoji: { fontSize: 20 },
-  headerName: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.text },
-  saveBtn: { width: 40, alignItems: 'flex-end' },
+  headerEmoji: { fontSize: 18 },
+  headerName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
+  saveBtn: { width: 44, alignItems: 'flex-end' },
   saveBtnText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.peachDark },
+  saveBtnDisabled: { opacity: 0.3 },
   listContent: { paddingVertical: Spacing.md, flexGrow: 1 },
   empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
-    paddingHorizontal: Spacing.xl,
+    paddingTop: 100,
   },
-  emptyEmoji: { fontSize: 48, marginBottom: Spacing.md },
-  emptyText: {
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
+  emptyEmoji: { fontSize: 40, marginBottom: Spacing.sm },
+  emptyName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, marginBottom: Spacing.xs },
+  emptyText: { fontSize: FontSize.sm, color: Colors.textSecondary },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -209,12 +207,11 @@ const styles = StyleSheet.create({
     maxHeight: 100,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.gray,
   },
   sendIcon: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.text },
 });

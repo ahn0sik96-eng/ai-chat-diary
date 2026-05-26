@@ -51,15 +51,14 @@ export async function sendMessage(
   return text;
 }
 
-const DIARY_SUMMARY_PROMPT = `당신은 감성적인 일기 작가입니다.
-아래 대화 내용을 읽고, 사용자의 감정과 하루를 담은 1인칭 감성 일기로 변환해 주세요.
+const DIARY_SUMMARY_PROMPT = `넌 일기 작성을 도와주는 AI야.
+아래 대화 내용을 보고, 사용자 입장에서 쓴 짧은 일기로 만들어줘.
 
 규칙:
-- 반드시 JSON 형식으로만 응답하세요: {"title": "...", "content": "..."}
-- title: 오늘의 감정이나 키워드를 담은 짧은 제목 (15자 이내)
-- content: 2~4 문단의 감성적인 일기 본문. 대화에서 느낀 감정과 생각을 자연스럽게 녹여주세요.
-- 존댓말 사용, 따뜻하고 문학적인 문체로 작성
-- 대화 내용 그대로 나열하지 말고, 감정 중심으로 재구성`;
+- 반드시 JSON 형식으로만 응답: {"title": "...", "content": "..."}
+- title: 오늘의 핵심 감정/사건 한 줄 (15자 이내)
+- content: 반말로, 3~5문장. 오늘 있었던 일과 느낀 감정을 솔직하고 가볍게. 너무 시적이거나 문학적이지 않게. 진짜 일기 쓰듯이 자연스럽게.
+- 예시 톤: "오늘 진짜 별로였다. 그냥 다 귀찮고 아무것도 하기 싫었는데 얘기하니까 좀 나아진 것 같기도 하고."`;
 
 export async function summarizeToDiary(
   messages: ChatMessage[]
