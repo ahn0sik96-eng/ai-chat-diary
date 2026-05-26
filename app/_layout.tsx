@@ -44,6 +44,10 @@ export default function RootLayout() {
         name="chat"
         options={{ href: null }}
       />
+      <Tabs.Screen
+        name="diary/[id]"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }
