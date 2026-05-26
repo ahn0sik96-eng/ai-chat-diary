@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   DiaryEntry, PlacedSticker, loadDiaryEntries, updateDiaryDecoration,
-  loadPurchasedIds,
+  deleteDiaryEntry, loadPurchasedIds,
 } from '../../utils/storage';
 import { removeBackground } from '../../utils/imageProcessing';
 import { PERSONAS } from '../../constants/personas';
@@ -27,11 +27,12 @@ interface DraggableStickerProps {
   canvasW: number;
   canvasH: number;
   onMove: (id: string, xPct: number, yPct: number) => void;
+  onResize: (id: string, size: number) => void;
   onDelete: (id: string) => void;
 }
 
 const DraggableSticker = React.memo(function DraggableSticker({
-  sticker, canvasW, canvasH, onMove, onDelete,
+  sticker, canvasW, canvasH, onMove, onResize, onDelete,
 }: DraggableStickerProps) {
   const initX = (sticker.xPct / 100) * canvasW - sticker.size / 2;
   const initY = (sticker.yPct / 100) * canvasH - sticker.size / 2;
@@ -40,48 +41,89 @@ const DraggableSticker = React.memo(function DraggableSticker({
   const absPos = useRef({ x: initX, y: initY });
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moved = useRef(false);
+  const isPinching = useRef(false);
+  const pinchStartDist = useRef(0);
+  const pinchStartSize = useRef(sticker.size);
+  const [currentSize, setCurrentSize] = useState(sticker.size);
+  const currentSizeRef = useRef(sticker.size);
+
+  function getPinchDist(evt: { nativeEvent: { touches: { pageX: number; pageY: number }[] } }) {
+    const t = evt.nativeEvent.touches;
+    if (t.length < 2) return null;
+    const dx = t[0].pageX - t[1].pageX;
+    const dy = t[0].pageY - t[1].pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
 
   const responder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
+      onPanResponderGrant: (evt) => {
         moved.current = false;
+        isPinching.current = false;
         pan.setOffset(absPos.current);
         pan.setValue({ x: 0, y: 0 });
-        longPressTimer.current = setTimeout(() => {
-          if (!moved.current) {
-            Alert.alert('스티커 삭제', '이 스티커를 삭제할까요?', [
-              { text: '취소', style: 'cancel' },
-              { text: '삭제', style: 'destructive', onPress: () => onDelete(sticker.id) },
-            ]);
-          }
-        }, 600);
-      },
-      onPanResponderMove: (_, g) => {
-        if (Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4) {
-          moved.current = true;
-          if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+        if (evt.nativeEvent.touches.length < 2) {
+          longPressTimer.current = setTimeout(() => {
+            if (!moved.current) {
+              Alert.alert('스티커 삭제', '이 스티커를 삭제할까요?', [
+                { text: '취소', style: 'cancel' },
+                { text: '삭제', style: 'destructive', onPress: () => onDelete(sticker.id) },
+              ]);
+            }
+          }, 600);
         }
-        Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false })(_, g);
+      },
+      onPanResponderMove: (evt, g) => {
+        const dist = getPinchDist(evt as any);
+        if (dist !== null) {
+          // Two-finger pinch → resize
+          if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+          moved.current = true;
+          if (!isPinching.current) {
+            isPinching.current = true;
+            pinchStartDist.current = dist;
+            pinchStartSize.current = currentSizeRef.current;
+          } else {
+            const scale = dist / pinchStartDist.current;
+            const newSize = Math.max(32, Math.min(220, pinchStartSize.current * scale));
+            currentSizeRef.current = newSize;
+            setCurrentSize(newSize);
+          }
+        } else {
+          // Single finger → drag
+          isPinching.current = false;
+          if (Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4) {
+            moved.current = true;
+            if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+          }
+          Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false })(evt, g);
+        }
       },
       onPanResponderRelease: (_, g) => {
         if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
         pan.flattenOffset();
         if (moved.current) {
-          const nx = absPos.current.x + g.dx;
-          const ny = absPos.current.y + g.dy;
-          absPos.current = { x: nx, y: ny };
-          onMove(
-            sticker.id,
-            Math.max(2, Math.min(98, ((nx + sticker.size / 2) / canvasW) * 100)),
-            Math.max(2, Math.min(97, ((ny + sticker.size / 2) / canvasH) * 100)),
-          );
+          if (isPinching.current) {
+            onResize(sticker.id, currentSizeRef.current);
+          } else {
+            const nx = absPos.current.x + g.dx;
+            const ny = absPos.current.y + g.dy;
+            absPos.current = { x: nx, y: ny };
+            onMove(
+              sticker.id,
+              Math.max(2, Math.min(98, ((nx + currentSizeRef.current / 2) / canvasW) * 100)),
+              Math.max(2, Math.min(97, ((ny + currentSizeRef.current / 2) / canvasH) * 100)),
+            );
+          }
         }
+        isPinching.current = false;
       },
       onPanResponderTerminate: () => {
         if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
         pan.flattenOffset();
+        isPinching.current = false;
       },
     })
   ).current;
@@ -92,9 +134,9 @@ const DraggableSticker = React.memo(function DraggableSticker({
       {...responder.panHandlers}
     >
       {sticker.imageUri ? (
-        <Image source={{ uri: sticker.imageUri }} style={{ width: sticker.size, height: sticker.size }} resizeMode="contain" />
+        <Image source={{ uri: sticker.imageUri }} style={{ width: currentSize, height: currentSize }} resizeMode="contain" />
       ) : (
-        <Text style={{ fontSize: sticker.size * 0.88, lineHeight: sticker.size + 4 }}>{sticker.emoji}</Text>
+        <Text style={{ fontSize: currentSize * 0.88, lineHeight: currentSize + 4 }}>{sticker.emoji}</Text>
       )}
     </Animated.View>
   );
@@ -148,9 +190,8 @@ export default function DiaryDetailScreen() {
   const [selectedFont, setSelectedFont] = useState<string | undefined>(undefined);
   const [summaryText, setSummaryText] = useState('');
   const [unlockedPackIds, setUnlockedPackIds] = useState<string[]>([]);
-  const [unlockedFontIds, setUnlockedFontIds] = useState<string[]>([]);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [fontPanelOpen, setFontPanelOpen] = useState(false);
+  const [fontPanelOpen, setFontPanelOpen] = useState(true);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const [saving, setSaving] = useState(false);
   const [processingPhoto, setProcessingPhoto] = useState(false);
@@ -166,67 +207,132 @@ export default function DiaryDetailScreen() {
     setSelectedFont(found.font);
     setSummaryText(found.summary ?? '');
 
-    const unlockedPacks = STORE_ITEMS.filter(i => i.type === 'sticker' && purchased.includes(i.id)).map(i => i.packId!);
-    const unlockedFonts = STORE_ITEMS.filter(i => i.type === 'font' && purchased.includes(i.id)).map(i => i.id);
+    const unlockedPacks = STORE_ITEMS
+      .filter(i => i.type === 'sticker' && purchased.includes(i.id))
+      .map(i => i.packId!);
     setUnlockedPackIds(unlockedPacks);
-    setUnlockedFontIds(unlockedFonts);
   }
 
   async function handleSave() {
     if (!entry) return;
     setSaving(true);
     await updateDiaryDecoration(entry.id, { font: selectedFont, stickers, summary: summaryText });
-    setEntry(prev => prev ? { ...prev, summary: summaryText } : null);
+    setEntry(prev => prev ? { ...prev, font: selectedFont, stickers, summary: summaryText } : null);
     setSaving(false);
     Alert.alert('저장 완료', '꾸미기가 저장되었어요.');
     setMode('read');
-    setFontPanelOpen(false);
+  }
+
+  async function handleDelete() {
+    if (!entry) return;
+    Alert.alert('일기 삭제', '이 일기를 삭제할까요? 되돌릴 수 없어요.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제', style: 'destructive', onPress: async () => {
+          await deleteDiaryEntry(entry.id);
+          router.back();
+        },
+      },
+    ]);
   }
 
   function addSticker(emoji: string) {
-    const newSticker: PlacedSticker = {
+    setStickers(prev => [...prev, {
       id: Date.now().toString(), emoji,
       xPct: 10 + Math.random() * 75,
-      yPct: 55 + Math.random() * 30,  // default below text
+      yPct: 55 + Math.random() * 30,
       size: 44,
-    };
-    setStickers(prev => [...prev, newSticker]);
+    }]);
   }
 
   async function handlePickPhotoSticker() {
-    Alert.alert(
-      '사진 스티커',
-      '아이폰에서 사진을 길게 눌러 피사체를 추출하면 투명 배경 스티커가 만들어져요. 그 사진을 선택하면 바로 스티커로 추가됩니다.',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '사진 선택', onPress: async () => {
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ['images'], quality: 0.9, allowsEditing: false,
-            });
-            if (result.canceled || !result.assets[0]) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], quality: 0.9, allowsEditing: false,
+    });
+    if (result.canceled || !result.assets[0]) return;
 
-            setProcessingPhoto(true);
-            const uri = result.assets[0].uri;
-            const isPng = uri.toLowerCase().includes('.png') || result.assets[0].mimeType === 'image/png';
-            const cutout = isPng ? null : await removeBackground(uri);
-            setProcessingPhoto(false);
+    const asset = result.assets[0];
+    const uri = asset.uri;
+    const mimeType = (asset as any).mimeType ?? '';
+    const isPng = mimeType === 'image/png' || uri.toLowerCase().endsWith('.png');
 
-            setStickers(prev => [...prev, {
-              id: Date.now().toString(), emoji: '',
-              imageUri: cutout ?? uri,
-              xPct: 15 + Math.random() * 65,
-              yPct: 50 + Math.random() * 35,
-              size: 90,
-            }]);
+    if (isPng) {
+      // iPhone sticker / transparent PNG — use as-is
+      setStickers(prev => [...prev, {
+        id: Date.now().toString(), emoji: '',
+        imageUri: uri,
+        xPct: 15 + Math.random() * 65,
+        yPct: 50 + Math.random() * 35,
+        size: 100,
+      }]);
+      return;
+    }
+
+    // Try background removal
+    const apiKey = process.env.EXPO_PUBLIC_REMOVEBG_API_KEY;
+    if (!apiKey) {
+      Alert.alert(
+        '피사체 추출',
+        '배경 제거를 하려면 .env.local 파일에 EXPO_PUBLIC_REMOVEBG_API_KEY를 설정해야 해요.\n\n아이폰 사진 앱에서 피사체를 길게 눌러 저장하면 투명 PNG 파일로 바로 쓸 수 있어요.',
+        [
+          {
+            text: '그냥 추가', onPress: () => {
+              setStickers(prev => [...prev, {
+                id: Date.now().toString(), emoji: '',
+                imageUri: uri,
+                xPct: 15 + Math.random() * 65,
+                yPct: 50 + Math.random() * 35,
+                size: 100,
+              }]);
+            },
           },
-        },
-      ]
-    );
+          { text: '취소', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
+    setProcessingPhoto(true);
+    const cutout = await removeBackground(uri);
+    setProcessingPhoto(false);
+
+    if (!cutout) {
+      Alert.alert(
+        '피사체 추출 실패',
+        '배경 제거에 실패했어요. 그냥 추가할까요?',
+        [
+          {
+            text: '그냥 추가', onPress: () => {
+              setStickers(prev => [...prev, {
+                id: Date.now().toString(), emoji: '',
+                imageUri: uri,
+                xPct: 15 + Math.random() * 65,
+                yPct: 50 + Math.random() * 35,
+                size: 100,
+              }]);
+            },
+          },
+          { text: '취소', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
+    setStickers(prev => [...prev, {
+      id: Date.now().toString(), emoji: '',
+      imageUri: cutout,
+      xPct: 15 + Math.random() * 65,
+      yPct: 50 + Math.random() * 35,
+      size: 100,
+    }]);
   }
 
-  function moveSticker(id: string, xPct: number, yPct: number) {
-    setStickers(prev => prev.map(s => s.id === id ? { ...s, xPct, yPct } : s));
+  function moveSticker(stickerId: string, xPct: number, yPct: number) {
+    setStickers(prev => prev.map(s => s.id === stickerId ? { ...s, xPct, yPct } : s));
+  }
+
+  function resizeSticker(stickerId: string, size: number) {
+    setStickers(prev => prev.map(s => s.id === stickerId ? { ...s, size } : s));
   }
 
   function deleteSticker(stickerId: string) {
@@ -236,26 +342,32 @@ export default function DiaryDetailScreen() {
   if (!entry) return null;
 
   const persona = PERSONAS.find(p => p.id === entry.persona_id);
-  const availableFonts = FONTS.filter(f => unlockedFontIds.includes(f.id));
   const canvasH = Math.max(canvasSize.h, PAGE_MIN_H);
 
   return (
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { router.back(); }} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{entry.title || '일기'}</Text>
-        {mode === 'read' ? (
-          <TouchableOpacity style={styles.actionBtn} onPress={() => setMode('decorate')}>
-            <Text style={styles.actionBtnText}>꾸미기</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.actionBtn} onPress={handleSave} disabled={saving}>
-            <Text style={styles.actionBtnText}>{saving ? '저장 중' : '완료'}</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerActions}>
+          {mode === 'read' ? (
+            <>
+              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+                <Text style={styles.deleteBtnText}>🗑</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => setMode('decorate')}>
+                <Text style={styles.actionBtnText}>꾸미기</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.actionBtn} onPress={handleSave} disabled={saving}>
+              <Text style={styles.actionBtnText}>{saving ? '저장 중' : '완료'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Read mode tabs */}
@@ -269,21 +381,25 @@ export default function DiaryDetailScreen() {
         </View>
       )}
 
-      {/* Font panel (decorate mode) */}
+      {/* Font panel — always visible in decorate mode */}
       {mode === 'decorate' && fontPanelOpen && (
         <View style={styles.fontPanel}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fontPanelContent}>
-            <TouchableOpacity style={[styles.fontChip, !selectedFont && styles.fontChipActive]} onPress={() => setSelectedFont(undefined)}>
+            <TouchableOpacity
+              style={[styles.fontChip, !selectedFont && styles.fontChipActive]}
+              onPress={() => setSelectedFont(undefined)}
+            >
               <Text style={styles.fontChipText}>기본체</Text>
             </TouchableOpacity>
-            {availableFonts.map(f => (
-              <TouchableOpacity key={f.id} style={[styles.fontChip, selectedFont === f.fontFamily && styles.fontChipActive]} onPress={() => setSelectedFont(f.fontFamily)}>
+            {FONTS.map(f => (
+              <TouchableOpacity
+                key={f.id}
+                style={[styles.fontChip, selectedFont === f.fontFamily && styles.fontChipActive]}
+                onPress={() => setSelectedFont(f.fontFamily)}
+              >
                 <Text style={[styles.fontChipText, { fontFamily: f.fontFamily }]}>{f.label}</Text>
               </TouchableOpacity>
             ))}
-            {availableFonts.length === 0 && (
-              <Text style={styles.noFontHint}>스토어에서 폰트를 구매해 보세요</Text>
-            )}
           </ScrollView>
         </View>
       )}
@@ -303,7 +419,6 @@ export default function DiaryDetailScreen() {
             setCanvasSize({ w: width, h: height });
           }}
         >
-          {/* Dot grid background */}
           <DotGrid width={canvasSize.w || SCREEN_W} height={canvasH} />
 
           {/* Date header */}
@@ -338,11 +453,18 @@ export default function DiaryDetailScreen() {
                   scrollEnabled={false}
                   placeholder="일기를 입력해 보세요"
                   placeholderTextColor={Colors.textMuted}
-                  style={[styles.diaryText, styles.diaryInput, selectedFont ? { fontFamily: selectedFont } : null]}
+                  style={[
+                    styles.diaryText,
+                    styles.diaryInput,
+                    selectedFont ? { fontFamily: selectedFont } : undefined,
+                  ]}
                 />
               ) : (
-                <Text style={[styles.diaryText, selectedFont ? { fontFamily: selectedFont } : null]}>
-                  {entry.summary || <Text style={{ color: Colors.textMuted }}>요약된 일기가 없어요.</Text>}
+                <Text style={[styles.diaryText, selectedFont ? { fontFamily: selectedFont } : undefined]}>
+                  {entry.summary
+                    ? entry.summary
+                    : <Text style={{ color: Colors.textMuted }}>요약된 일기가 없어요.</Text>
+                  }
                 </Text>
               )}
             </View>
@@ -365,16 +487,26 @@ export default function DiaryDetailScreen() {
             </View>
           )}
 
-          {/* Sticker canvas area hint */}
+          {/* Sticker hint */}
           {mode === 'decorate' && stickers.length === 0 && (
             <View style={styles.stickerHint} pointerEvents="none">
-              <Text style={styles.stickerHintText}>아래 툴바에서 스티커를 추가하세요{'\n'}드래그로 자유롭게 배치 · 꾹 누르면 삭제</Text>
+              <Text style={styles.stickerHintText}>
+                아래 툴바에서 스티커 추가{'\n'}드래그로 배치 · 두 손가락으로 크기 조절 · 꾹 누르면 삭제
+              </Text>
             </View>
           )}
 
           {/* Draggable stickers */}
           {mode === 'decorate' && canvasSize.w > 0 && stickers.map(s => (
-            <DraggableSticker key={s.id} sticker={s} canvasW={canvasSize.w} canvasH={canvasH} onMove={moveSticker} onDelete={deleteSticker} />
+            <DraggableSticker
+              key={s.id}
+              sticker={s}
+              canvasW={canvasSize.w}
+              canvasH={canvasH}
+              onMove={moveSticker}
+              onResize={resizeSticker}
+              onDelete={deleteSticker}
+            />
           ))}
 
           {/* Static stickers */}
@@ -390,7 +522,7 @@ export default function DiaryDetailScreen() {
       {mode === 'decorate' && (
         <View style={styles.bottomToolbar}>
           <TouchableOpacity style={styles.toolBtn} onPress={() => setFontPanelOpen(v => !v)}>
-            <Text style={styles.toolBtnIcon}>Aa</Text>
+            <Text style={[styles.toolBtnIcon, { fontWeight: '700' }]}>Aa</Text>
             <Text style={styles.toolBtnLabel}>폰트</Text>
           </TouchableOpacity>
           <View style={styles.toolDivider} />
@@ -432,7 +564,10 @@ const styles = StyleSheet.create({
   backBtn: { width: 40 },
   backText: { fontSize: FontSize.xl, color: Colors.text },
   headerTitle: { flex: 1, fontSize: FontSize.md, fontWeight: '600', color: Colors.text, textAlign: 'center' },
-  actionBtn: { width: 60, alignItems: 'flex-end' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  deleteBtn: { padding: 4 },
+  deleteBtnText: { fontSize: 18 },
+  actionBtn: { paddingHorizontal: 4 },
   actionBtnText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.peachDark },
   tabBar: {
     flexDirection: 'row', backgroundColor: Colors.surface,
@@ -456,7 +591,6 @@ const styles = StyleSheet.create({
   },
   fontChipActive: { borderColor: Colors.peachDark, backgroundColor: Colors.peachLight },
   fontChipText: { fontSize: FontSize.sm, color: Colors.text },
-  noFontHint: { fontSize: FontSize.xs, color: Colors.textMuted, alignSelf: 'center' },
 
   // Page
   scrollArea: { flex: 1 },
