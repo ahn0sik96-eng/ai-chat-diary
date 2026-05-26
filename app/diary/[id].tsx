@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Alert, LayoutChangeEvent, Image, ActivityIndicator,
+  Animated, Image, PanResponder, SafeAreaView,
+  ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -18,6 +19,139 @@ import Bubble from '../../components/Bubble';
 
 type Mode = 'read' | 'decorate';
 type Tab = 'diary' | 'chat';
+
+// ─── DraggableSticker ─────────────────────────────────────────────────────
+
+interface DraggableStickerProps {
+  sticker: PlacedSticker;
+  canvasW: number;
+  canvasH: number;
+  onMove: (id: string, xPct: number, yPct: number) => void;
+  onDelete: (id: string) => void;
+}
+
+const DraggableSticker = React.memo(function DraggableSticker({
+  sticker,
+  canvasW,
+  canvasH,
+  onMove,
+  onDelete,
+}: DraggableStickerProps) {
+  const pan = useRef(new Animated.ValueXY()).current;
+  const absPos = useRef({
+    x: (sticker.xPct / 100) * canvasW - sticker.size / 2,
+    y: (sticker.yPct / 100) * canvasH - sticker.size / 2,
+  });
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moved = useRef(false);
+
+  // Initialise pan to absolute position
+  useEffect(() => {
+    pan.setValue({ x: absPos.current.x, y: absPos.current.y });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        pan.setOffset({ x: (pan.x as unknown as { _value: number })._value, y: (pan.y as unknown as { _value: number })._value });
+        pan.setValue({ x: 0, y: 0 });
+        moved.current = false;
+
+        longPressTimer.current = setTimeout(() => {
+          if (!moved.current) {
+            Alert.alert('스티커 삭제', '이 스티커를 삭제할까요?', [
+              { text: '취소', style: 'cancel' },
+              { text: '삭제', style: 'destructive', onPress: () => onDelete(sticker.id) },
+            ]);
+          }
+        }, 600);
+      },
+      onPanResponderMove: (_, gs) => {
+        if (Math.abs(gs.dx) > 4 || Math.abs(gs.dy) > 4) {
+          moved.current = true;
+          if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+          }
+        }
+        Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false })(_, gs);
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+        }
+        pan.flattenOffset();
+        const newX = (pan.x as unknown as { _value: number })._value;
+        const newY = (pan.y as unknown as { _value: number })._value;
+        absPos.current = { x: newX, y: newY };
+
+        const xPct = Math.min(98, Math.max(2, ((newX + sticker.size / 2) / canvasW) * 100));
+        const yPct = Math.min(98, Math.max(2, ((newY + sticker.size / 2) / (canvasH || 620)) * 100));
+        onMove(sticker.id, xPct, yPct);
+      },
+    })
+  ).current;
+
+  return (
+    <Animated.View
+      style={[
+        styles.stickerAbsolute,
+        { left: pan.x, top: pan.y, width: sticker.size, height: sticker.size },
+      ]}
+      {...panResponder.panHandlers}
+    >
+      {sticker.imageUri ? (
+        <Image
+          source={{ uri: sticker.imageUri }}
+          style={{ width: sticker.size, height: sticker.size }}
+          resizeMode="contain"
+        />
+      ) : (
+        <Text style={{ fontSize: sticker.size * 0.85 }}>{sticker.emoji}</Text>
+      )}
+    </Animated.View>
+  );
+});
+
+// ─── LinedBackground ──────────────────────────────────────────────────────
+
+function LinedBackground({ height }: { height: number }) {
+  const lines = [];
+  for (let y = 130; y < Math.max(height, 620); y += 32) {
+    lines.push(
+      <View
+        key={y}
+        style={{
+          position: 'absolute',
+          left: 44,
+          right: 0,
+          top: y,
+          height: 1,
+          backgroundColor: '#E8DDD0',
+        }}
+      />
+    );
+  }
+  return <View style={StyleSheet.absoluteFill} pointerEvents="none">{lines}</View>;
+}
+
+// ─── SpiralRings ──────────────────────────────────────────────────────────
+
+function SpiralRings({ height }: { height: number }) {
+  const rings = [];
+  const totalH = Math.max(height, 620);
+  for (let y = 40; y < totalH; y += 52) {
+    rings.push(
+      <View key={y} style={[styles.spiralRing, { top: y - 10 }]} />
+    );
+  }
+  return <View pointerEvents="none">{rings}</View>;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────
 
 export default function DiaryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -104,24 +238,19 @@ export default function DiaryDetailScreen() {
     setStickers((prev) => [...prev, newSticker]);
   }
 
-  function removeSticker(stickerId: string) {
-    Alert.alert('스티커 삭제', '이 스티커를 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: () =>
-        setStickers((prev) => prev.filter((s) => s.id !== stickerId))
-      },
-    ]);
+  function moveSticker(id: string, xPct: number, yPct: number) {
+    setStickers(prev => prev.map(s => s.id === id ? { ...s, xPct, yPct } : s));
   }
 
-  function onCanvasLayout(e: LayoutChangeEvent) {
-    const { width, height } = e.nativeEvent.layout;
-    setCanvasSize({ w: width, h: height });
+  function deleteSticker(stickerId: string) {
+    setStickers((prev) => prev.filter((s) => s.id !== stickerId));
   }
 
   if (!entry) return null;
 
   const persona = PERSONAS.find((p) => p.id === entry.persona_id);
   const availableFonts = FONTS.filter((f) => unlockedFontIds.includes(f.id));
+  const canvasH = canvasSize.h || 620;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -185,110 +314,139 @@ export default function DiaryDetailScreen() {
               <Text style={styles.noItemHint}>스토어에서 폰트를 구매해 보세요</Text>
             )}
           </ScrollView>
-          <TouchableOpacity style={styles.stickerAddBtn} onPress={() => setPickerVisible(true)}>
-            <Text style={styles.stickerAddText}>스티커</Text>
+          {/* Sticker picker button */}
+          <TouchableOpacity style={styles.toolbarIconBtn} onPress={() => setPickerVisible(true)}>
+            <Text style={styles.toolbarIconText}>🎀</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.stickerAddBtn, { marginLeft: 0 }]} onPress={handlePickPhotoSticker} disabled={processingPhoto}>
+          {/* Photo sticker button */}
+          <TouchableOpacity
+            style={styles.toolbarIconBtn}
+            onPress={handlePickPhotoSticker}
+            disabled={processingPhoto}
+          >
             {processingPhoto ? (
               <ActivityIndicator size="small" color={Colors.textSecondary} />
             ) : (
-              <Text style={styles.stickerAddText}>사진</Text>
+              <Text style={styles.toolbarIconText}>📷</Text>
             )}
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Canvas */}
-      <View style={styles.canvas} onLayout={onCanvasLayout}>
-        {/* Diary tab: summary only */}
-        {(mode === 'decorate' || tab === 'diary') && (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            {entry.summary ? (
-              <View style={[styles.summaryCard, { borderLeftColor: persona?.accentColor ?? Colors.peach }]}>
-                <Text style={styles.summaryDate}>{formatDate(entry.created_at)}</Text>
-                <View style={[styles.personaTag, { backgroundColor: persona?.accentLight ?? Colors.peachLight }]}>
-                  <Text style={styles.personaTagText}>{persona?.name ?? '친구'}</Text>
-                </View>
-                <Text style={[styles.summaryText, selectedFont ? { fontFamily: selectedFont } : null]}>
+      {/* Page */}
+      <ScrollView scrollEnabled={mode === 'read'} contentContainerStyle={{ flexGrow: 1 }}>
+        <View
+          style={[styles.page, { minHeight: 620 }]}
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            setCanvasSize({ w: width, h: height });
+          }}
+        >
+          {/* Ruled lines */}
+          <LinedBackground height={canvasH} />
+
+          {/* Spiral rings */}
+          <SpiralRings height={canvasH} />
+
+          {/* Left margin line */}
+          <View style={styles.marginLine} />
+
+          {/* Page header: date + persona stamp */}
+          <View style={styles.pageHeader}>
+            <Text style={styles.dateText}>
+              {entry.emotionEmoji ? `${entry.emotionEmoji}  ` : ''}
+              {formatDate(entry.created_at)}
+            </Text>
+            {persona && (
+              <View style={[styles.personaStamp, { backgroundColor: persona.accentLight ?? Colors.peachLight }]}>
+                <Text style={styles.personaStampText}>{persona.emoji} {persona.name}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Diary content (diary tab or decorate mode) */}
+          {(mode === 'decorate' || tab === 'diary') && (
+            <View style={styles.diaryContent}>
+              {entry.summary ? (
+                <Text style={[
+                  styles.diaryText,
+                  selectedFont ? { fontFamily: selectedFont } : null,
+                ]}>
                   {entry.summary}
                 </Text>
-              </View>
-            ) : (
-              <View style={styles.noSummary}>
+              ) : (
                 <Text style={styles.noSummaryText}>요약된 일기가 없어요.</Text>
-              </View>
-            )}
-            <View style={{ height: 120 }} />
-          </ScrollView>
-        )}
+              )}
+            </View>
+          )}
 
-        {/* Chat tab: messages only */}
-        {mode === 'read' && tab === 'chat' && (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            {entry.messages.map((msg, i) => (
-              <Bubble
-                key={i}
-                role={msg.role}
-                content={msg.content}
-                accentColor={persona?.accentColor}
-                accentLight={persona?.accentLight}
-                timestamp={msg.timestamp}
-                fontFamily={selectedFont}
-              />
-            ))}
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        )}
+          {/* Chat tab content (read mode only) */}
+          {mode === 'read' && tab === 'chat' && (
+            <View style={styles.chatContent}>
+              {entry.messages.map((msg, i) => (
+                <Bubble
+                  key={i}
+                  role={msg.role}
+                  content={msg.content}
+                  accentColor={persona?.accentColor}
+                  accentLight={persona?.accentLight}
+                  timestamp={msg.timestamp}
+                  fontFamily={selectedFont}
+                  imageUri={msg.imageUri}
+                />
+              ))}
+            </View>
+          )}
 
-        {/* Placed stickers (absolute layer, only in decorate mode) */}
-        {mode === 'decorate' && stickers.map((s) => (
-          <TouchableOpacity
-            key={s.id}
-            style={[
-              styles.sticker,
-              {
-                left: (s.xPct / 100) * canvasSize.w - s.size / 2,
-                top:  (s.yPct / 100) * (canvasSize.h || 400) - s.size / 2,
-              },
-            ]}
-            onLongPress={() => removeSticker(s.id)}
-            activeOpacity={0.7}
-          >
-            {s.imageUri ? (
-              <Image source={{ uri: s.imageUri }} style={{ width: s.size, height: s.size }} resizeMode="contain" />
-            ) : (
-              <Text style={{ fontSize: s.size }}>{s.emoji}</Text>
-            )}
-          </TouchableOpacity>
-        ))}
+          {/* Draggable stickers (decorate mode) */}
+          {mode === 'decorate' && canvasSize.w > 0 && stickers.map((s) => (
+            <DraggableSticker
+              key={s.id}
+              sticker={s}
+              canvasW={canvasSize.w}
+              canvasH={canvasH}
+              onMove={moveSticker}
+              onDelete={deleteSticker}
+            />
+          ))}
 
-        {/* Stickers in read/diary mode (non-interactive) */}
-        {mode === 'read' && tab === 'diary' && stickers.map((s) => (
-          <View
-            key={s.id}
-            style={[
-              styles.sticker,
-              {
-                left: (s.xPct / 100) * canvasSize.w - s.size / 2,
-                top:  (s.yPct / 100) * (canvasSize.h || 400) - s.size / 2,
-              },
-            ]}
-            pointerEvents="none"
-          >
-            {s.imageUri ? (
-              <Image source={{ uri: s.imageUri }} style={{ width: s.size, height: s.size }} resizeMode="contain" />
-            ) : (
-              <Text style={{ fontSize: s.size }}>{s.emoji}</Text>
-            )}
-          </View>
-        ))}
+          {/* Static stickers (read mode, diary tab) */}
+          {mode === 'read' && tab === 'diary' && canvasSize.w > 0 && stickers.map((s) => (
+            <View
+              key={s.id}
+              style={[
+                styles.stickerAbsolute,
+                {
+                  left: (s.xPct / 100) * canvasSize.w - s.size / 2,
+                  top: (s.yPct / 100) * canvasH - s.size / 2,
+                  width: s.size,
+                  height: s.size,
+                },
+              ]}
+              pointerEvents="none"
+            >
+              {s.imageUri ? (
+                <Image
+                  source={{ uri: s.imageUri }}
+                  style={{ width: s.size, height: s.size }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text style={{ fontSize: s.size * 0.85 }}>{s.emoji}</Text>
+              )}
+            </View>
+          ))}
 
-        {mode === 'decorate' && stickers.length === 0 && (
-          <View style={styles.hint} pointerEvents="none">
-            <Text style={styles.hintText}>스티커를 추가해 보세요{'\n'}길게 누르면 삭제됩니다</Text>
-          </View>
-        )}
-      </View>
+          {/* Hint in decorate mode when no stickers */}
+          {mode === 'decorate' && stickers.length === 0 && (
+            <View style={styles.hint} pointerEvents="none">
+              <Text style={styles.hintText}>스티커를 추가해 보세요{'\n'}길게 누르면 삭제됩니다</Text>
+            </View>
+          )}
+
+          <View style={{ height: 160 }} />
+        </View>
+      </ScrollView>
 
       <StickerPicker
         visible={pickerVisible}
@@ -307,7 +465,7 @@ function formatDate(iso: string) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: '#FEF9EF' },
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
@@ -316,7 +474,10 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40 },
   backText: { fontSize: FontSize.xl, color: Colors.text },
-  headerTitle: { flex: 1, fontSize: FontSize.md, fontWeight: '600', color: Colors.text, textAlign: 'center' },
+  headerTitle: {
+    flex: 1, fontSize: FontSize.md, fontWeight: '600',
+    color: Colors.text, textAlign: 'center',
+  },
   actionBtn: { width: 60, alignItems: 'flex-end' },
   actionBtnText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.peachDark },
   tabBar: {
@@ -346,35 +507,88 @@ const styles = StyleSheet.create({
   fontChipActive: { borderColor: Colors.peachDark, backgroundColor: Colors.peachLight },
   fontChipText: { fontSize: FontSize.sm, color: Colors.text },
   noItemHint: { fontSize: FontSize.xs, color: Colors.textMuted, alignSelf: 'center' },
-  stickerAddBtn: {
-    marginRight: Spacing.md, paddingHorizontal: Spacing.md,
-    paddingVertical: 6, backgroundColor: Colors.grayLight,
-    borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border,
+  toolbarIconBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: Spacing.sm,
+    backgroundColor: Colors.grayLight,
+    borderWidth: 1, borderColor: Colors.border,
   },
-  stickerAddText: { fontSize: FontSize.sm, color: Colors.text },
-  canvas: { flex: 1, position: 'relative' },
-  scrollContent: { paddingVertical: Spacing.lg },
-  summaryCard: {
-    marginHorizontal: Spacing.md, marginBottom: Spacing.md,
-    backgroundColor: Colors.surface, borderRadius: Radius.md,
-    borderLeftWidth: 3, padding: Spacing.lg,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  toolbarIconText: { fontSize: 20 },
+  // Page
+  page: {
+    position: 'relative',
+    backgroundColor: '#FEF9EF',
+    paddingLeft: 56,
+    overflow: 'hidden',
   },
-  summaryDate: { fontSize: FontSize.xs, color: Colors.textMuted, marginBottom: Spacing.sm },
-  personaTag: {
-    alignSelf: 'flex-start', borderRadius: Radius.full,
-    paddingHorizontal: Spacing.sm, paddingVertical: 2,
-    marginBottom: Spacing.md,
+  spiralRing: {
+    position: 'absolute', left: 6, width: 20, height: 20, borderRadius: 10,
+    borderWidth: 3, borderColor: '#BBBAB5', backgroundColor: '#F9F8F6',
+    zIndex: 5,
   },
-  personaTagText: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: '500' },
-  summaryText: { fontSize: FontSize.md, color: Colors.text, lineHeight: 28 },
-  noSummary: { alignItems: 'center', paddingTop: 60 },
-  noSummaryText: { fontSize: FontSize.sm, color: Colors.textMuted },
-  sticker: { position: 'absolute', zIndex: 10 },
+  marginLine: {
+    position: 'absolute', left: 44, top: 0, bottom: 0, width: 1.5,
+    backgroundColor: '#F2B8B8', opacity: 0.8, zIndex: 1,
+  },
+  pageHeader: {
+    paddingTop: 24,
+    paddingRight: Spacing.md,
+    paddingBottom: 12,
+    zIndex: 2,
+  },
+  dateText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  personaStamp: {
+    alignSelf: 'flex-start',
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+  },
+  personaStampText: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: '500' },
+  diaryContent: {
+    paddingRight: Spacing.md,
+    paddingBottom: Spacing.lg,
+    zIndex: 2,
+  },
+  diaryText: {
+    fontSize: 15,
+    color: '#1C1C1E',
+    lineHeight: 32,
+    letterSpacing: 0.2,
+  },
+  noSummaryText: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    lineHeight: 32,
+  },
+  chatContent: {
+    paddingRight: 0,
+    paddingBottom: Spacing.lg,
+    zIndex: 2,
+    // Chat bubbles handle their own padding
+    paddingLeft: 0,
+    marginLeft: -56, // offset the page paddingLeft so bubbles go edge-to-edge
+  },
+  stickerAbsolute: {
+    position: 'absolute',
+    zIndex: 20,
+  },
   hint: {
-    position: 'absolute', bottom: 120, left: 0, right: 0,
+    position: 'absolute',
+    bottom: 180,
+    left: 56,
+    right: 0,
     alignItems: 'center',
   },
-  hintText: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  hintText: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
 });

@@ -10,6 +10,7 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   imageUri?: string;
+  imageBase64?: string;  // transient: used only in memory, stripped before saving
 }
 
 export interface PlacedSticker {

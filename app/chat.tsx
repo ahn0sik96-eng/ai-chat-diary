@@ -35,16 +35,19 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pendingImageBase64, setPendingImageBase64] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [openerShown, setOpenerShown] = useState(false);
+  const [generatingOpener, setGeneratingOpener] = useState(true);
 
   // Schedule popup
   const [popupSchedules, setPopupSchedules] = useState<DetectedSchedule[]>([]);
   const [popupVisible, setPopupVisible] = useState(false);
 
   const listRef = useRef<FlatList>(null);
-  const { context: proactiveContext, loading: loadingOpener } = useProactiveContext();
+  const { context: proactiveContext, loading: contextLoading } = useProactiveContext();
+  const loadingOpener = contextLoading || generatingOpener;
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
@@ -52,26 +55,30 @@ export default function ChatScreen() {
 
   // Generate proactive opener once context is ready
   useEffect(() => {
-    if (loadingOpener || openerShown || !proactiveContext) return;
+    if (contextLoading || openerShown) return;
     setOpenerShown(true);
     let cancelled = false;
-    generateProactiveOpener(persona.id, proactiveContext).then((opener) => {
+    generateProactiveOpener(persona.id, proactiveContext!).then((opener) => {
       if (!cancelled && opener) {
         setMessages([makeAssistantMessage(opener)]);
         scrollToBottom();
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => {
+      if (!cancelled) setGeneratingOpener(false);
+    });
     return () => { cancelled = true; };
-  }, [loadingOpener]);
+  }, [contextLoading, proactiveContext]);
 
   async function handlePickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.7,
       allowsEditing: true,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
       setPendingImage(result.assets[0].uri);
+      setPendingImageBase64(result.assets[0].base64 ?? null);
     }
   }
 
@@ -80,11 +87,12 @@ export default function ChatScreen() {
     if (!text && !pendingImage) return;
     if (sending) return;
 
-    const userMsg = makeUserMessage(text || '(사진)', pendingImage ?? undefined);
+    const userMsg = makeUserMessage(text || '(사진)', pendingImage ?? undefined, pendingImageBase64 ?? undefined);
     const next = [...messages, userMsg];
     setMessages(next);
     setInput('');
     setPendingImage(null);
+    setPendingImageBase64(null);
     setSending(true);
     scrollToBottom();
 
@@ -157,12 +165,13 @@ export default function ChatScreen() {
         extractFromChat(messages),
       ]);
 
+      const cleanMessages = messages.map(({ imageBase64: _b64, ...m }) => m);
       const diaryEntry = await saveDiaryEntry({
         persona_id: persona.id,
         title: diary.title,
         summary: diary.content,
         emotionEmoji: diary.emotionEmoji,
-        messages,
+        messages: cleanMessages,
       });
 
       // Save to short-term memory

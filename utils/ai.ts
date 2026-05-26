@@ -37,6 +37,13 @@ async function geminiCall(
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
+// ─── MIME type helper ─────────────────────────────────────────────────────
+
+function getMimeType(uri: string): string {
+  const ext = uri.split('.').pop()?.toLowerCase() ?? '';
+  return ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif', gif: 'image/gif' } as Record<string, string>)[ext] ?? 'image/jpeg';
+}
+
 // ─── Chat ─────────────────────────────────────────────────────────────────
 
 export async function sendMessage(
@@ -58,10 +65,10 @@ export async function sendMessage(
     messages.map(async (m) => {
       const parts: Record<string, unknown>[] = [];
       if (m.content) parts.push({ text: m.content });
-      if (m.imageUri) {
+      if (m.imageUri || m.imageBase64) {
         try {
-          const base64 = await readAsStringAsync(m.imageUri, { encoding: 'base64' });
-          parts.push({ inline_data: { mime_type: 'image/jpeg', data: base64 } });
+          const base64 = m.imageBase64 ?? await readAsStringAsync(m.imageUri!, { encoding: 'base64' });
+          parts.push({ inline_data: { mime_type: getMimeType(m.imageUri ?? ''), data: base64 } });
         } catch {}
       }
       if (parts.length === 0) parts.push({ text: '' });
@@ -204,8 +211,8 @@ export async function generateProactiveOpener(
 
 // ─── Message factories ─────────────────────────────────────────────────────
 
-export function makeUserMessage(content: string, imageUri?: string): ChatMessage {
-  return { role: 'user', content, timestamp: new Date().toISOString(), imageUri };
+export function makeUserMessage(content: string, imageUri?: string, imageBase64?: string): ChatMessage {
+  return { role: 'user', content, timestamp: new Date().toISOString(), imageUri, imageBase64 };
 }
 
 export function makeAssistantMessage(content: string): ChatMessage {
