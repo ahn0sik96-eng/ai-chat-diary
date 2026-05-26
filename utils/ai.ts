@@ -1,12 +1,9 @@
+import { readAsStringAsync } from 'expo-file-system';
 import { ChatMessage } from './storage';
 import { PERSONAS, PersonaId } from '../constants/personas';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
-/**
- * Send messages to Gemini API with the selected persona's system prompt.
- * Requires EXPO_PUBLIC_GEMINI_API_KEY in environment (.env.local).
- */
 export async function sendMessage(
   personaId: PersonaId,
   messages: ChatMessage[]
@@ -16,22 +13,40 @@ export async function sendMessage(
 
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
-    // Demo mode: return a canned response so UI is testable without a key
     await new Promise((r) => setTimeout(r, 800));
     return getDemoReply(persona.id);
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
-  const contents = messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
+  const contents = await Promise.all(
+    messages.map(async (m) => {
+      const parts: Record<string, unknown>[] = [];
+      if (m.content) {
+        parts.push({ text: m.content });
+      }
+      if (m.imageUri) {
+        try {
+          const base64 = await readAsStringAsync(m.imageUri, {
+            encoding: 'base64',
+          });
+          parts.push({
+            inline_data: { mime_type: 'image/jpeg', data: base64 },
+          });
+        } catch {}
+      }
+      if (parts.length === 0) parts.push({ text: '' });
+      return {
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts,
+      };
+    })
+  );
 
   const body = {
     system_instruction: { parts: [{ text: persona.systemPrompt }] },
     contents,
-    generationConfig: { maxOutputTokens: 200, temperature: 0.85 },
+    generationConfig: { maxOutputTokens: 300, temperature: 0.85 },
   };
 
   const response = await fetch(url, {
@@ -76,6 +91,7 @@ export async function summarizeToDiary(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   const conversation = messages
+    .filter((m) => m.content)
     .map((m) => `${m.role === 'user' ? '나' : 'AI'}: ${m.content}`)
     .join('\n');
 
@@ -106,8 +122,66 @@ export async function summarizeToDiary(
   }
 }
 
-export function makeUserMessage(content: string): ChatMessage {
-  return { role: 'user', content, timestamp: new Date().toISOString() };
+export async function extractFromChat(
+  messages: ChatMessage[]
+): Promise<{
+  schedules: { title: string; date: string; time?: string }[];
+  reminders: { title: string; datetime: string }[];
+}> {
+  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+  const empty = { schedules: [], reminders: [] };
+  if (!apiKey) return empty;
+
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const dayOfWeek = dayNames[now.getDay()];
+
+  const extractPrompt = `오늘은 ${today} (${dayOfWeek}요일)이야.
+대화에서 일정(약속/이벤트)과 할 일(TODO/해야할 것)을 추출해.
+
+규칙:
+- JSON으로만 응답
+- "내일" = 오늘+1일, "모레" = +2일, "다음주 X요일" = 다음주 해당 요일 등 상대 날짜를 YYYY-MM-DD로 변환
+- 시간 정보 없으면 time 생략
+- 할 일에 시간 없으면 해당 날짜 09:00으로 설정
+- 일정이나 할 일이 없으면 빈 배열
+
+형식: {"schedules":[{"title":"","date":"YYYY-MM-DD","time":"HH:mm"}],"reminders":[{"title":"","datetime":"YYYY-MM-DDTHH:mm:00"}]}`;
+
+  const conversation = messages
+    .filter((m) => m.content)
+    .map((m) => `${m.role === 'user' ? '나' : 'AI'}: ${m.content}`)
+    .join('\n');
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const body = {
+    system_instruction: { parts: [{ text: extractPrompt }] },
+    contents: [{ role: 'user', parts: [{ text: conversation }] }],
+    generationConfig: { maxOutputTokens: 512, temperature: 0.2, responseMimeType: 'application/json' },
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) return empty;
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+    const parsed = JSON.parse(text);
+    return {
+      schedules: Array.isArray(parsed.schedules) ? parsed.schedules : [],
+      reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [],
+    };
+  } catch {
+    return empty;
+  }
+}
+
+export function makeUserMessage(content: string, imageUri?: string): ChatMessage {
+  return { role: 'user', content, timestamp: new Date().toISOString(), imageUri };
 }
 
 export function makeAssistantMessage(content: string): ChatMessage {
@@ -116,7 +190,7 @@ export function makeAssistantMessage(content: string): ChatMessage {
 
 function getDemoReply(personaId: PersonaId): string {
   const replies: Record<PersonaId, string> = {
-    bestie: '맞아 맞아! 나도 그런 적 있어 🍑 근데 그래서 어떻게 됐어? 더 얘기해줘~',
+    bestie: '맞아 맞아! 나도 그런 적 있어~ 근데 그래서 어떻게 됐어? 더 얘기해줘!',
     blunt: '그래서 뭐? 그게 그렇게 힘들었어? ...뭐, 좀 힘들었겠다. 근데 넌 괜찮아질 거야.',
     unni: '그랬구나. 그 감정, 충분히 이해해. 나도 비슷한 시간이 있었거든. 지금 어떤 게 제일 마음에 걸려?',
     expert: '말씀해 주신 감정이 잘 느껴지네요. 그 순간에 어떤 생각이 가장 먼저 떠오르셨나요?',

@@ -16,38 +16,20 @@ export default function RootLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: '채팅',
-          tabBarIcon: ({ color }) => (
-            <TabIcon label="💬" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="archive"
-        options={{
-          title: '일기장',
-          tabBarIcon: ({ color }) => (
-            <TabIcon label="📖" color={color} />
-          ),
+          title: '홈',
+          tabBarIcon: ({ color }) => <TabIcon label="📅" color={color} />,
         }}
       />
       <Tabs.Screen
         name="store"
         options={{
           title: '스토어',
-          tabBarIcon: ({ color }) => (
-            <TabIcon label="🛍️" color={color} />
-          ),
+          tabBarIcon: ({ color }) => <TabIcon label="🛍️" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="chat"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="diary/[id]"
-        options={{ href: null }}
-      />
+      <Tabs.Screen name="archive" options={{ href: null }} />
+      <Tabs.Screen name="chat" options={{ href: null }} />
+      <Tabs.Screen name="diary/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

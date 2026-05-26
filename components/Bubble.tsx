@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
 
 interface BubbleProps {
@@ -9,6 +9,7 @@ interface BubbleProps {
   accentLight?: string;
   timestamp?: string;
   fontFamily?: string;
+  imageUri?: string;
 }
 
 export default function Bubble({
@@ -18,6 +19,7 @@ export default function Bubble({
   accentLight = Colors.peachLight,
   timestamp,
   fontFamily,
+  imageUri,
 }: BubbleProps) {
   const isUser = role === 'user';
 
@@ -31,7 +33,16 @@ export default function Bubble({
             : [styles.bubbleAssistant, { backgroundColor: accentLight }],
         ]}
       >
-        <Text style={[styles.text, fontFamily ? { fontFamily } : null]}>{content}</Text>
+        {imageUri && (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        )}
+        {content ? (
+          <Text style={[styles.text, fontFamily ? { fontFamily } : null]}>{content}</Text>
+        ) : null}
         {timestamp && (
           <Text style={[styles.timestamp, isUser && styles.timestampUser]}>
             {formatTime(timestamp)}
@@ -60,9 +71,16 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
+    overflow: 'hidden',
   },
   bubbleUser: { borderBottomRightRadius: Radius.sm },
   bubbleAssistant: { borderBottomLeftRadius: Radius.sm },
+  image: {
+    width: 200,
+    height: 200,
+    borderRadius: Radius.sm,
+    marginBottom: Spacing.xs,
+  },
   text: {
     fontSize: FontSize.md,
     color: Colors.text,
@@ -74,5 +92,5 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
     alignSelf: 'flex-end',
   },
-  timestampUser: { color: 'rgba(51,51,51,0.55)' },
+  timestampUser: { color: 'rgba(28,28,30,0.45)' },
 });
