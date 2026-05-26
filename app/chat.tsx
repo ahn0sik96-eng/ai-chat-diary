@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Bubble from '../components/Bubble';
-import { ChatMessage } from '../utils/supabase';
+import { ChatMessage, saveDiaryEntry } from '../utils/storage';
 import { sendMessage, makeUserMessage, makeAssistantMessage } from '../utils/ai';
 import { PERSONAS, PersonaId } from '../constants/personas';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
@@ -49,11 +49,21 @@ export default function ChatScreen() {
       const assistantMsg = makeAssistantMessage(reply);
       setMessages((prev) => [...prev, assistantMsg]);
       scrollToBottom();
-    } catch (e) {
+    } catch {
       Alert.alert('오류', '메시지 전송에 실패했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setSending(false);
     }
+  }
+
+  async function handleSave() {
+    if (messages.length === 0) return;
+    const firstUserMsg = messages.find((m) => m.role === 'user')?.content ?? '';
+    const title = firstUserMsg.slice(0, 30) + (firstUserMsg.length > 30 ? '...' : '');
+    await saveDiaryEntry({ persona_id: persona.id, title, messages });
+    Alert.alert('저장 완료 ✅', '일기장에 저장되었어요!', [
+      { text: '확인', onPress: () => router.back() },
+    ]);
   }
 
   return (
@@ -67,7 +77,9 @@ export default function ChatScreen() {
           <Text style={styles.headerEmoji}>{persona.emoji}</Text>
           <Text style={styles.headerName}>{persona.name}</Text>
         </View>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={messages.length === 0}>
+          <Text style={[styles.saveBtnText, messages.length === 0 && { opacity: 0.3 }]}>저장</Text>
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -75,7 +87,6 @@ export default function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
-        {/* Message list */}
         <FlatList
           ref={listRef}
           data={messages}
@@ -100,7 +111,6 @@ export default function ChatScreen() {
           }
         />
 
-        {/* Input bar */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -110,7 +120,6 @@ export default function ChatScreen() {
             placeholderTextColor={Colors.textMuted}
             multiline
             maxLength={500}
-            onSubmitEditing={handleSend}
           />
           {sending ? (
             <View style={styles.sendBtn}>
@@ -145,13 +154,32 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, justifyContent: 'center' },
   backText: { fontSize: FontSize.xl, color: Colors.text },
-  headerCenter: { flex: 1, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
   headerEmoji: { fontSize: 20 },
   headerName: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.text },
+  saveBtn: { width: 40, alignItems: 'flex-end' },
+  saveBtnText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.peachDark },
   listContent: { paddingVertical: Spacing.md, flexGrow: 1 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: Spacing.xl },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 80,
+    paddingHorizontal: Spacing.xl,
+  },
   emptyEmoji: { fontSize: 48, marginBottom: Spacing.md },
-  emptyText: { fontSize: FontSize.md, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24 },
+  emptyText: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',

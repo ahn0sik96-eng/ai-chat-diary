@@ -9,7 +9,14 @@ import {
   Alert,
 } from 'react-native';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
-import { StoreItem } from '../utils/supabase';
+interface StoreItem {
+  id: string;
+  type: 'font' | 'sticker';
+  name: string;
+  preview_url: string;
+  price: number;
+  is_purchased: boolean;
+}
 
 type TabKey = 'font' | 'sticker';
 

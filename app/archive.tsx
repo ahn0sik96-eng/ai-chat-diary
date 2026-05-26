@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,36 +8,27 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
-import { DiaryEntry, fetchDiaryEntries, deleteDiaryEntry } from '../utils/supabase';
+import { useFocusEffect } from 'expo-router';
+import { DiaryEntry, loadDiaryEntries, deleteDiaryEntry } from '../utils/storage';
 import { PERSONAS } from '../constants/personas';
 import { Colors, Radius, Spacing, FontSize } from '../constants/theme';
 
-const MOCK_USER_ID = 'local-user';
-
 export default function ArchiveScreen() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
-    try {
-      const data = await fetchDiaryEntries(MOCK_USER_ID);
-      setEntries(data);
-    } catch {
-      // Supabase not yet configured — show empty state
-    } finally {
-      setLoading(false);
-    }
-  }
+  useFocusEffect(
+    useCallback(() => {
+      loadDiaryEntries().then(setEntries);
+    }, [])
+  );
 
   function confirmDelete(id: string) {
     Alert.alert('일기 삭제', '이 일기를 삭제할까요?', [
       { text: '취소', style: 'cancel' },
       {
-        text: '삭제', style: 'destructive', onPress: async () => {
+        text: '삭제',
+        style: 'destructive',
+        onPress: async () => {
           await deleteDiaryEntry(id);
           setEntries((prev) => prev.filter((e) => e.id !== id));
         },
@@ -52,35 +43,27 @@ export default function ArchiveScreen() {
         <Text style={styles.subtitle}>나의 감정 기록들</Text>
       </View>
 
-      {loading ? null : (
-        <FlatList
-          data={entries}
-          keyExtractor={(e) => e.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <EntryCard entry={item} onDelete={() => confirmDelete(item.id)} />
-          )}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>📝</Text>
-              <Text style={styles.emptyText}>
-                아직 저장된 일기가 없어요.{'\n'}채팅을 마치면 일기가 저장됩니다!
-              </Text>
-            </View>
-          }
-        />
-      )}
+      <FlatList
+        data={entries}
+        keyExtractor={(e) => e.id}
+        contentContainerStyle={styles.list}
+        renderItem={({ item }) => (
+          <EntryCard entry={item} onDelete={() => confirmDelete(item.id)} />
+        )}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>📝</Text>
+            <Text style={styles.emptyText}>
+              아직 저장된 일기가 없어요.{'\n'}채팅 후 오른쪽 상단 [저장]을 눌러보세요!
+            </Text>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 }
 
-function EntryCard({
-  entry,
-  onDelete,
-}: {
-  entry: DiaryEntry;
-  onDelete: () => void;
-}) {
+function EntryCard({ entry, onDelete }: { entry: DiaryEntry; onDelete: () => void }) {
   const persona = PERSONAS.find((p) => p.id === entry.persona_id);
   const preview = entry.messages.find((m) => m.role === 'user')?.content ?? '';
 
@@ -97,20 +80,22 @@ function EntryCard({
           <Text style={styles.cardDate}>{formatDate(entry.created_at)}</Text>
         </View>
       </View>
-      {entry.title ? (
-        <Text style={styles.cardTitle}>{entry.title}</Text>
-      ) : null}
+      {entry.title ? <Text style={styles.cardTitle}>{entry.title}</Text> : null}
       <Text style={styles.cardPreview} numberOfLines={2}>
         {preview}
       </Text>
-      <Text style={styles.cardCount}>{entry.messages.length}개의 메시지</Text>
+      <Text style={styles.cardCount}>{entry.messages.length}개의 메시지 · 길게 눌러 삭제</Text>
     </TouchableOpacity>
   );
 }
 
 function formatDate(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+  return d.toLocaleDateString('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'short',
+  });
 }
 
 const styles = StyleSheet.create({
@@ -135,10 +120,24 @@ const styles = StyleSheet.create({
   cardMeta: { flex: 1 },
   cardPersona: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.text },
   cardDate: { fontSize: FontSize.xs, color: Colors.textSecondary },
-  cardTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, marginBottom: Spacing.xs },
+  cardTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
   cardPreview: { fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 20 },
   cardCount: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: Spacing.xs },
-  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: Spacing.xl },
+  empty: {
+    alignItems: 'center',
+    paddingTop: 80,
+    paddingHorizontal: Spacing.xl,
+  },
   emptyEmoji: { fontSize: 48, marginBottom: Spacing.md },
-  emptyText: { fontSize: FontSize.md, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24 },
+  emptyText: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
 });
