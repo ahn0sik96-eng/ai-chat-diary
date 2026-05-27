@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Colors, FontSize } from '../constants/theme';
 
 export default function RootLayout() {
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -31,6 +33,7 @@ export default function RootLayout() {
       <Tabs.Screen name="chat" options={{ href: null }} />
       <Tabs.Screen name="diary/[id]" options={{ href: null }} />
     </Tabs>
+    </GestureHandlerRootView>
   );
 }
 

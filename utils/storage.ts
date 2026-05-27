@@ -19,7 +19,15 @@ export interface PlacedSticker {
   xPct: number;
   yPct: number;
   size: number;
-  imageUri?: string;  // for photo stickers (background-removed PNG)
+  rotation?: number;   // radians
+  imageUri?: string;
+}
+
+export interface DrawingStroke {
+  svgPath: string;     // serialized via SkPath.toSVGString()
+  color: string;
+  strokeWidth: number;
+  tool: 'pencil' | 'highlighter' | 'tape';
 }
 
 export interface DiaryEntry {
@@ -32,6 +40,7 @@ export interface DiaryEntry {
   created_at: string;
   font?: string;
   stickers?: PlacedSticker[];
+  drawingStrokes?: DrawingStroke[];
 }
 
 export interface ScheduleEvent {
@@ -77,7 +86,7 @@ export async function loadDiaryEntries(): Promise<DiaryEntry[]> {
 
 export async function updateDiaryDecoration(
   id: string,
-  patch: { font?: string; stickers?: PlacedSticker[]; summary?: string }
+  patch: { font?: string; stickers?: PlacedSticker[]; summary?: string; drawingStrokes?: DrawingStroke[] }
 ): Promise<void> {
   const all = await loadDiaryEntries();
   const updated = all.map((e) => (e.id === id ? { ...e, ...patch } : e));
