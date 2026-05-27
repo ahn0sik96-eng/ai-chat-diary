@@ -15,6 +15,8 @@ import { PERSONAS } from '../../constants/personas';
 import { FONTS, STORE_ITEMS } from '../../constants/decorations';
 import { Colors, Radius, Spacing, FontSize } from '../../constants/theme';
 import StickerPicker from '../../components/StickerPicker';
+import SubjectExtractorModal from '../../components/SubjectExtractorModal';
+import WebStickerPicker from '../../components/WebStickerPicker';
 import Bubble from '../../components/Bubble';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -191,6 +193,9 @@ export default function DiaryDetailScreen() {
   const [summaryText, setSummaryText] = useState('');
   const [unlockedPackIds, setUnlockedPackIds] = useState<string[]>([]);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [webStickerVisible, setWebStickerVisible] = useState(false);
+  const [extractorVisible, setExtractorVisible] = useState(false);
+  const [extractorImageUri, setExtractorImageUri] = useState('');
   const [fontPanelOpen, setFontPanelOpen] = useState(true);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const [saving, setSaving] = useState(false);
@@ -246,9 +251,11 @@ export default function DiaryDetailScreen() {
   }
 
   async function handlePickPhotoSticker() {
+    setProcessingPhoto(true);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'], quality: 0.9, allowsEditing: false,
     });
+    setProcessingPhoto(false);
     if (result.canceled || !result.assets[0]) return;
 
     const asset = result.assets[0];
@@ -257,73 +264,33 @@ export default function DiaryDetailScreen() {
     const isPng = mimeType === 'image/png' || uri.toLowerCase().endsWith('.png');
 
     if (isPng) {
-      // iPhone sticker / transparent PNG — use as-is
-      setStickers(prev => [...prev, {
-        id: Date.now().toString(), emoji: '',
-        imageUri: uri,
-        xPct: 15 + Math.random() * 65,
-        yPct: 50 + Math.random() * 35,
-        size: 100,
-      }]);
+      // Transparent PNG (e.g. iPhone sticker) — use as-is without extraction UI
+      addPhotoSticker(uri);
       return;
     }
 
-    // Try background removal
-    const apiKey = process.env.EXPO_PUBLIC_REMOVEBG_API_KEY;
-    if (!apiKey) {
-      Alert.alert(
-        '피사체 추출',
-        '배경 제거를 하려면 .env.local 파일에 EXPO_PUBLIC_REMOVEBG_API_KEY를 설정해야 해요.\n\n아이폰 사진 앱에서 피사체를 길게 눌러 저장하면 투명 PNG 파일로 바로 쓸 수 있어요.',
-        [
-          {
-            text: '그냥 추가', onPress: () => {
-              setStickers(prev => [...prev, {
-                id: Date.now().toString(), emoji: '',
-                imageUri: uri,
-                xPct: 15 + Math.random() * 65,
-                yPct: 50 + Math.random() * 35,
-                size: 100,
-              }]);
-            },
-          },
-          { text: '취소', style: 'cancel' },
-        ]
-      );
-      return;
-    }
+    // Open in-app subject extractor
+    setExtractorImageUri(uri);
+    setExtractorVisible(true);
+  }
 
-    setProcessingPhoto(true);
-    const cutout = await removeBackground(uri);
-    setProcessingPhoto(false);
-
-    if (!cutout) {
-      Alert.alert(
-        '피사체 추출 실패',
-        '배경 제거에 실패했어요. 그냥 추가할까요?',
-        [
-          {
-            text: '그냥 추가', onPress: () => {
-              setStickers(prev => [...prev, {
-                id: Date.now().toString(), emoji: '',
-                imageUri: uri,
-                xPct: 15 + Math.random() * 65,
-                yPct: 50 + Math.random() * 35,
-                size: 100,
-              }]);
-            },
-          },
-          { text: '취소', style: 'cancel' },
-        ]
-      );
-      return;
-    }
-
+  function addPhotoSticker(uri: string) {
     setStickers(prev => [...prev, {
       id: Date.now().toString(), emoji: '',
-      imageUri: cutout,
+      imageUri: uri,
       xPct: 15 + Math.random() * 65,
       yPct: 50 + Math.random() * 35,
       size: 100,
+    }]);
+  }
+
+  function addWebSticker(uri: string) {
+    setStickers(prev => [...prev, {
+      id: Date.now().toString(), emoji: '',
+      imageUri: uri,
+      xPct: 10 + Math.random() * 75,
+      yPct: 55 + Math.random() * 30,
+      size: 72,
     }]);
   }
 
@@ -528,15 +495,19 @@ export default function DiaryDetailScreen() {
           <View style={styles.toolDivider} />
           <TouchableOpacity style={styles.toolBtn} onPress={() => setPickerVisible(true)}>
             <Text style={styles.toolBtnIcon}>🎀</Text>
-            <Text style={styles.toolBtnLabel}>스티커</Text>
+            <Text style={styles.toolBtnLabel}>이모티콘</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.toolBtn} onPress={() => setWebStickerVisible(true)}>
+            <Text style={styles.toolBtnIcon}>🌐</Text>
+            <Text style={styles.toolBtnLabel}>인터넷</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.toolBtn} onPress={handlePickPhotoSticker} disabled={processingPhoto}>
             {processingPhoto ? (
               <ActivityIndicator size="small" color={Colors.peachDark} />
             ) : (
               <>
-                <Text style={styles.toolBtnIcon}>📷</Text>
-                <Text style={styles.toolBtnLabel}>사진</Text>
+                <Text style={styles.toolBtnIcon}>✂️</Text>
+                <Text style={styles.toolBtnLabel}>피사체</Text>
               </>
             )}
           </TouchableOpacity>
@@ -548,6 +519,17 @@ export default function DiaryDetailScreen() {
         unlockedPackIds={unlockedPackIds}
         onSelect={addSticker}
         onClose={() => setPickerVisible(false)}
+      />
+      <WebStickerPicker
+        visible={webStickerVisible}
+        onAdd={addWebSticker}
+        onClose={() => setWebStickerVisible(false)}
+      />
+      <SubjectExtractorModal
+        visible={extractorVisible}
+        imageUri={extractorImageUri}
+        onAdd={addPhotoSticker}
+        onClose={() => setExtractorVisible(false)}
       />
     </SafeAreaView>
   );
