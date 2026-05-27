@@ -7,9 +7,6 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Skia } from '@shopify/react-native-skia';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 
 import {
   DiaryEntry, DrawingStroke, PlacedSticker,
@@ -63,7 +60,7 @@ export default function DiaryDetailScreen() {
   const [drawTool,  setDrawTool]  = useState<DrawingTool>('pencil');
   const [drawColor, setDrawColor] = useState('#1A202C');
   const [liveSvg,   setLiveSvg]  = useState<string | null>(null);
-  const drawPathRef = useRef<ReturnType<typeof Skia.Path.Make> | null>(null);
+  const drawPathRef = useRef<string | null>(null);
 
   // ── Snap guides ─────────────────────────────────────────────────────────
   const [snapGuideX, setSnapGuideX] = useState<number | null>(null);
@@ -186,28 +183,24 @@ export default function DiaryDetailScreen() {
     onPanResponderGrant: evt => {
       activeTouches.current = evt.nativeEvent.touches.length;
       if (evt.nativeEvent.touches.length >= 2) {
-        // Two-finger tap — potential undo; don't start drawing
         return;
       }
       const { locationX, locationY } = evt.nativeEvent;
-      const p = Skia.Path.Make();
-      p.moveTo(locationX, locationY);
-      drawPathRef.current = p;
-      setLiveSvg(p.toSVGString());
+      drawPathRef.current = `M${locationX.toFixed(1)},${locationY.toFixed(1)}`;
+      setLiveSvg(drawPathRef.current);
     },
     onPanResponderMove: evt => {
       activeTouches.current = evt.nativeEvent.touches.length;
       if (!drawPathRef.current || evt.nativeEvent.touches.length >= 2) return;
       const { locationX, locationY } = evt.nativeEvent;
-      drawPathRef.current.lineTo(locationX, locationY);
-      setLiveSvg(drawPathRef.current.toSVGString());
+      drawPathRef.current += ` L${locationX.toFixed(1)},${locationY.toFixed(1)}`;
+      setLiveSvg(drawPathRef.current);
     },
     onPanResponderRelease: evt => {
       const wasTwoFinger = activeTouches.current >= 2;
       activeTouches.current = 0;
 
       if (wasTwoFinger) {
-        // Two-finger release → check double-tap for undo
         const now = Date.now();
         if (now - lastTapTime.current < 400) {
           handleUndo();
@@ -220,12 +213,11 @@ export default function DiaryDetailScreen() {
         return;
       }
 
-      if (!drawPathRef.current) return;
-      const svgPath = drawPathRef.current.toSVGString();
+      const svgPath = drawPathRef.current;
       drawPathRef.current = null;
       setLiveSvg(null);
 
-      if (svgPath.length < 6) return; // too short — ignore
+      if (!svgPath || svgPath.length < 6) return;
       const newStroke: DrawingStroke = {
         svgPath, color: drawColor,
         strokeWidth: toolStrokeWidth(), tool: drawTool,
@@ -354,7 +346,7 @@ export default function DiaryDetailScreen() {
             style={{ width: CANVAS_W, height: CANVAS_H, position: 'relative', overflow: 'hidden', borderRadius: 16 }}
             {...(isDrawMode ? drawPanResponder.panHandlers : {})}
           >
-            {/* Layer 1: Skia paper + drawing strokes */}
+            {/* Layer 1: Paper background + drawing strokes */}
             <PaperCanvas
               width={CANVAS_W}
               height={CANVAS_H}

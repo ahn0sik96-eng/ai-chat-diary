@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Canvas, Rect, Path, Skia, Line } from '@shopify/react-native-skia';
+import { View, StyleSheet } from 'react-native';
+import Svg, { Path, Line, Rect } from 'react-native-svg';
 import { DrawingStroke } from '../utils/storage';
 
 const PAPER_BG = '#FAF9F6';
@@ -22,96 +23,82 @@ export default function PaperCanvas({
   currentTool = 'pencil', currentColor = '#444',
   snapGuideX, snapGuideY,
 }: Props) {
-  // Horizontal ruled lines for paper texture
-  const ruledLines = useMemo(() => {
-    const pts: { y: number }[] = [];
-    for (let y = LINE_SPACING; y < height; y += LINE_SPACING) pts.push({ y });
-    return pts;
+  const ruledLineYs = useMemo(() => {
+    const ys: number[] = [];
+    for (let y = LINE_SPACING; y < height; y += LINE_SPACING) ys.push(y);
+    return ys;
   }, [height]);
-
-  // Convert stored stroke SVG paths to SkPath objects
-  const skStrokes = useMemo(() => strokes.map(s => ({
-    ...s,
-    path: Skia.Path.MakeFromSVGString(s.svgPath) ?? Skia.Path.Make(),
-  })), [strokes]);
-
-  // Active drawing path
-  const currentSkPath = useMemo(() => {
-    if (!currentSvgPath) return null;
-    return Skia.Path.MakeFromSVGString(currentSvgPath);
-  }, [currentSvgPath]);
 
   function toolProps(tool: DrawingStroke['tool']) {
     switch (tool) {
-      case 'highlighter': return { strokeWidth: 20, opacity: 0.45, blendMode: 'multiply' as const };
-      case 'tape':        return { strokeWidth: 14, opacity: 0.55, blendMode: 'srcOver' as const };
-      default:            return { strokeWidth: 2.5, opacity: 1,    blendMode: 'srcOver' as const };
+      case 'highlighter': return { strokeWidth: 20, opacity: 0.45 };
+      case 'tape':        return { strokeWidth: 14, opacity: 0.55 };
+      default:            return { strokeWidth: 2.5, opacity: 1 };
     }
   }
 
   return (
-    <Canvas style={{ position: 'absolute', width, height }}>
-      {/* Paper background */}
-      <Rect x={0} y={0} width={width} height={height} color={PAPER_BG} />
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: PAPER_BG }]} pointerEvents="none">
+      <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+        {/* Paper background */}
+        <Rect x={0} y={0} width={width} height={height} fill={PAPER_BG} />
 
-      {/* Ruled lines */}
-      {ruledLines.map(({ y }) => (
-        <Line key={y} p1={{ x: 16, y }} p2={{ x: width - 16, y }}
-          color={LINE_COLOR} strokeWidth={0.5} />
-      ))}
-
-      {/* Saved drawing strokes */}
-      {skStrokes.map((s, i) => {
-        const tp = toolProps(s.tool);
-        return (
-          <Path
-            key={i}
-            path={s.path}
-            color={s.color}
-            style="stroke"
-            strokeWidth={s.strokeWidth}
-            strokeCap="round"
-            strokeJoin="round"
-            blendMode={tp.blendMode}
-            opacity={tp.opacity}
+        {/* Ruled lines */}
+        {ruledLineYs.map(y => (
+          <Line
+            key={y}
+            x1={16} y1={y} x2={width - 16} y2={y}
+            stroke={LINE_COLOR} strokeWidth={0.5}
           />
-        );
-      })}
+        ))}
 
-      {/* Live drawing stroke */}
-      {currentSkPath && (() => {
-        const tp = toolProps(currentTool);
-        return (
-          <Path
-            path={currentSkPath}
-            color={currentColor}
-            style="stroke"
-            strokeWidth={tp.strokeWidth}
-            strokeCap="round"
-            strokeJoin="round"
-            blendMode={tp.blendMode}
-            opacity={tp.opacity}
+        {/* Saved drawing strokes */}
+        {strokes.map((s, i) => {
+          const tp = toolProps(s.tool);
+          return (
+            <Path
+              key={i}
+              d={s.svgPath}
+              stroke={s.color}
+              strokeWidth={s.strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={tp.opacity}
+            />
+          );
+        })}
+
+        {/* Live drawing stroke */}
+        {currentSvgPath && (() => {
+          const tp = toolProps(currentTool);
+          return (
+            <Path
+              d={currentSvgPath}
+              stroke={currentColor}
+              strokeWidth={tp.strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={tp.opacity}
+            />
+          );
+        })()}
+
+        {/* Alignment snap guide lines */}
+        {snapGuideX != null && (
+          <Line
+            x1={snapGuideX} y1={0} x2={snapGuideX} y2={height}
+            stroke="rgba(80,120,255,0.5)" strokeWidth={1.5}
           />
-        );
-      })()}
-
-      {/* Alignment snap guide lines */}
-      {snapGuideX != null && (
-        <Line
-          p1={{ x: snapGuideX, y: 0 }}
-          p2={{ x: snapGuideX, y: height }}
-          color="rgba(80,120,255,0.5)"
-          strokeWidth={1.5}
-        />
-      )}
-      {snapGuideY != null && (
-        <Line
-          p1={{ x: 0, y: snapGuideY }}
-          p2={{ x: width, y: snapGuideY }}
-          color="rgba(80,120,255,0.5)"
-          strokeWidth={1.5}
-        />
-      )}
-    </Canvas>
+        )}
+        {snapGuideY != null && (
+          <Line
+            x1={0} y1={snapGuideY} x2={width} y2={snapGuideY}
+            stroke="rgba(80,120,255,0.5)" strokeWidth={1.5}
+          />
+        )}
+      </Svg>
+    </View>
   );
 }
