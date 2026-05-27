@@ -124,9 +124,28 @@ export default function SubjectExtractorModal({ visible, imageUri, onAdd, onClos
           ) : (
             // Preview result
             <View style={styles.previewWrap}>
+              {/* Checkered background so transparent PNGs are visible */}
               <View style={styles.checker}>
+                <View style={styles.checkerGrid}>
+                  {Array.from({ length: 64 }).map((_, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.checkerCell,
+                        (Math.floor(i / 8) + (i % 8)) % 2 === 0
+                          ? { backgroundColor: '#ccc' }
+                          : { backgroundColor: '#eee' },
+                      ]}
+                    />
+                  ))}
+                </View>
                 {previewUri ? (
-                  <Image source={{ uri: previewUri }} style={styles.previewImg} resizeMode="contain" />
+                  <Image
+                    source={{ uri: previewUri }}
+                    style={styles.previewImg}
+                    resizeMode="contain"
+                    onError={() => {}}
+                  />
                 ) : (
                   <Text style={styles.errTxt}>추출 실패</Text>
                 )}
@@ -200,10 +219,17 @@ const styles = StyleSheet.create({
   previewWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a' },
   checker: {
     width: 280, height: 280, borderRadius: 20,
-    backgroundColor: '#ddd',
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
   },
-  previewImg: { width: 260, height: 260 },
+  checkerGrid: {
+    position: 'absolute', top: 0, left: 0, width: 280, height: 280,
+    flexDirection: 'row', flexWrap: 'wrap',
+  },
+  checkerCell: { width: 35, height: 35 },
+  previewImg: {
+    position: 'absolute', width: 260, height: 260,
+  },
   errTxt: { fontSize: FontSize.md, color: Colors.textSecondary },
   bottom: {
     backgroundColor: '#111',

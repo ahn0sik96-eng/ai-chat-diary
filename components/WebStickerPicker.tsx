@@ -7,12 +7,13 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Colors, FontSize, Spacing, Radius } from '../constants/theme';
 
 const { width: SW } = Dimensions.get('window');
-const CDN = 'https://cdn.jsdelivr.net/npm/openmoji@15.0.0/color/png/72x72';
+// Twemoji CDN (cdnjs) — verified working, CC BY 4.0
+const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72';
 const COLS = 5;
 const CELL = Math.floor((SW - 32) / COLS);
 
 function stickerUrl(code: string) {
-  return `${CDN}/${code}.png`;
+  return `${CDN}/${code.toLowerCase()}.png`;
 }
 
 // copyright: OpenMoji CC BY-SA 4.0  https://openmoji.org
@@ -111,7 +112,7 @@ export default function WebStickerPicker({ visible, onAdd, onClose }: Props) {
             <Text style={styles.closeTxt}>✕</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.credit}>OpenMoji · CC BY-SA 4.0 · openmoji.org</Text>
+        <Text style={styles.credit}>Twemoji · CC BY 4.0 · twemoji.twitter.com</Text>
 
         {/* Category tabs */}
         <ScrollView
