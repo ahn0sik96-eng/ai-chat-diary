@@ -37,6 +37,16 @@ async function geminiCall(
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
+// ─── JSON extraction helper ───────────────────────────────────────────────
+
+function stripMarkdown(raw: string): string {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (fenced) return fenced[1].trim();
+  const obj = raw.match(/\{[\s\S]*\}/);
+  if (obj) return obj[0];
+  return raw.trim();
+}
+
 // ─── MIME type helper ─────────────────────────────────────────────────────
 
 function getMimeType(uri: string): string {
@@ -137,7 +147,7 @@ export async function summarizeToDiary(
   });
 
   try {
-    const parsed = JSON.parse(text || '{}');
+    const parsed = JSON.parse(stripMarkdown(text || '{}'));
     const segments: string[] = Array.isArray(parsed.segments) && parsed.segments.length > 0
       ? parsed.segments
       : (parsed.content ? [parsed.content] : [text]);
@@ -184,7 +194,7 @@ export async function extractFromChat(
   });
 
   try {
-    const parsed = JSON.parse(text || '{}');
+    const parsed = JSON.parse(stripMarkdown(text || '{}'));
     return {
       schedules: Array.isArray(parsed.schedules) ? parsed.schedules : [],
       reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [],
