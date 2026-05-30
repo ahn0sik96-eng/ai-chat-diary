@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import {
@@ -152,20 +154,49 @@ export default function DiaryDetailScreen() {
   }
 
   async function handlePickPhotoSticker() {
+    Alert.alert(
+      '피사체 추가',
+      '아이폰 사진 앱에서 피사체를 꾹 누른 뒤 "피사체 복사"를 탭하고, 아래 "붙여넣기"를 눌러요.\n\n또는 갤러리에서 사진을 직접 선택할 수도 있어요.',
+      [
+        {
+          text: '📋 붙여넣기',
+          onPress: handlePasteSubject,
+        },
+        {
+          text: '🖼️ 갤러리에서 선택',
+          onPress: handlePickFromGallery,
+        },
+        { text: '취소', style: 'cancel' },
+      ],
+    );
+  }
+
+  async function handlePasteSubject() {
+    setProcessingPhoto(true);
+    try {
+      const result = await Clipboard.getImageAsync({ format: 'png' });
+      if (!result?.data) {
+        Alert.alert('클립보드에 이미지가 없어요', '아이폰 사진 앱에서 피사체를 꾹 누른 뒤 "피사체 복사"를 먼저 해주세요.');
+        return;
+      }
+      const uri = `${FileSystem.cacheDirectory}subject_${Date.now()}.png`;
+      await FileSystem.writeAsStringAsync(uri, result.data, { encoding: 'base64' });
+      addPhotoSticker(uri);
+    } catch {
+      Alert.alert('오류', '붙여넣기에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setProcessingPhoto(false);
+    }
+  }
+
+  async function handlePickFromGallery() {
     setProcessingPhoto(true);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'], quality: 0.9, allowsEditing: false,
     });
     setProcessingPhoto(false);
     if (result.canceled || !result.assets[0]) return;
-
-    const asset = result.assets[0];
-    const uri = asset.uri;
-    const isPng = ((asset as any).mimeType === 'image/png') || uri.toLowerCase().endsWith('.png');
-    if (isPng) { addPhotoSticker(uri); return; }
-
-    setExtractorImageUri(uri);
-    setExtractorVisible(true);
+    addPhotoSticker(result.assets[0].uri);
   }
 
   // ── Drawing ───────────────────────────────────────────────────────────────
