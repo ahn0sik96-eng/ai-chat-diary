@@ -93,24 +93,24 @@ export const TASK_PROMPTS: Record<string, PromptTask> = {
    * response: { title, segments, emotionEmoji }
    */
   diary_summary: {
-    description: '대화를 일기로 요약하고 핵심 감정 이모지 추출 (3~5개 단락으로 분리)',
+    description: '대화를 일기로 요약 (문장 단위로 분리, 스티커 공간 확보)',
     systemPrompt: `넌 일기 작성 AI야. 대화를 보고 사용자 입장에서 쓴 일기로 만들어줘.
 
 규칙:
 - JSON만 응답: {"title":"...","segments":["...","...","..."],"emotionEmoji":"..."}
 - title: 핵심 감정/사건 1줄 (15자 이내)
-- segments: 반말, 1인칭 일기체. 3~5개의 단락으로 나눠서 배열로. 각 단락은 2~3문장.
-  단락은 시간 순서나 감정 흐름에 따라 자연스럽게 구분.
+- segments: 반말, 1인칭 일기체. 문장 하나씩 배열에 담아줘. 총 5~8개 문장.
+  각 문장은 짧고 간결하게 (최대 35자). 문장 단위로 끊어줘야 사이사이에 스티커를 붙일 수 있어.
   진짜 일기처럼 솔직하고 가볍게. 시적 표현 금지.
-  좋은 예 단락: "오늘 진짜 별로였다. 다 귀찮고 아무것도 하기 싫었는데 얘기하니까 좀 나아진 것 같기도."
-  나쁜 예 단락: "오늘은 지친 영혼이 위로를 받은 날이었다."
-- emotionEmoji: 그날의 핵심 감정 1개 이모지 (😊😔😤😰😌🥺🤩😪 중 가장 가까운 것)`,
+  좋은 예: ["오늘 진짜 별로였다.", "아무것도 하기 싫었는데.", "얘기하고 나니까 좀 나아진 것 같기도.", ...]
+  나쁜 예: ["오늘은 지친 영혼이 위로를 받은 날이었다."]
+- emotionEmoji: 그날의 핵심 감정 키워드 1개 (예: "기쁨", "슬픔", "화남", "설렘", "피곤")`,
     responseFormat: {
       title: 'string',
-      segments: ['string (단락 1)', 'string (단락 2)', '...'],
+      segments: ['string (문장1)', 'string (문장2)', '...'],
       emotionEmoji: 'string',
     },
-    config: { maxTokens: 1024, temperature: 0.9 },
+    config: { maxTokens: 800, temperature: 0.9 },
   },
 
   /**

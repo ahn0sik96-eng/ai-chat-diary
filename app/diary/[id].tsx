@@ -4,6 +4,7 @@ import {
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
   ActivityIndicator,
 } from 'react-native';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -29,15 +30,18 @@ import Bubble from '../../components/Bubble';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const CANVAS_W = SCREEN_W - 24;
-const CANVAS_H = 1300;
 const PADDING_X = 20;
 const HEADER_H = 140;
 const LINE_H = 28;
 const FONT_SIZE = 15;
-const SEGMENT_SLOT = 190; // px allocated per segment (text + sticker space below)
+const SEGMENT_SLOT = 140; // px per sentence (text ~50px + sticker zone ~90px)
 
 function segmentTop(i: number) {
   return HEADER_H + i * SEGMENT_SLOT;
+}
+
+function canvasHeight(segCount: number) {
+  return Math.max(1200, HEADER_H + (segCount + 2) * SEGMENT_SLOT);
 }
 
 function splitIntoSegments(text: string): string[] {
@@ -306,7 +310,9 @@ export default function DiaryDetailScreen() {
           {mode === 'read' && (
             <>
               <TouchableOpacity style={styles.iconBtn} onPress={handleDelete}>
-                <Text style={styles.iconBtnTxt}>🗑</Text>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={Colors.textSecondary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <Path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                </Svg>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionBtn} onPress={() => setMode('decorate')}>
                 <Text style={styles.actionBtnTxt}>꾸미기</Text>
@@ -364,13 +370,13 @@ export default function DiaryDetailScreen() {
             style={[styles.modeBtn, isDecoMode && styles.modeBtnActive]}
             onPress={() => setMode('decorate')}
           >
-            <Text style={styles.modeLabel}>🎀 스티커</Text>
+            <Text style={styles.modeLabel}>스티커</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modeBtn, isDrawMode && styles.modeBtnActive]}
             onPress={() => setMode('draw')}
           >
-            <Text style={styles.modeLabel}>✏️ 드로잉</Text>
+            <Text style={styles.modeLabel}>드로잉</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -386,13 +392,13 @@ export default function DiaryDetailScreen() {
         <View style={styles.card}>
           {/* ──────── Canvas ──────── */}
           <View
-            style={{ width: CANVAS_W, height: CANVAS_H, position: 'relative', overflow: 'hidden', borderRadius: 16 }}
+            style={{ width: CANVAS_W, height: canvasHeight(segments.length), position: 'relative', overflow: 'hidden', borderRadius: 16 }}
             {...(isDrawMode ? drawPanResponder.panHandlers : {})}
           >
             {/* Layer 1: Paper background + drawing strokes */}
             <PaperCanvas
               width={CANVAS_W}
-              height={CANVAS_H}
+              height={canvasHeight(segments.length)}
               strokes={strokes}
               currentSvgPath={liveSvg}
               currentTool={drawTool}
@@ -410,11 +416,15 @@ export default function DiaryDetailScreen() {
                     {createdAt.toLocaleDateString('ko-KR', { month: 'long', year: 'numeric', weekday: 'short' })}
                   </Text>
                 </View>
-                {entry.emotionEmoji && <Text style={styles.emotionEmoji}>{entry.emotionEmoji}</Text>}
+                {entry.emotionEmoji && (
+                  <View style={[styles.emotionDot, { backgroundColor: persona?.accentColor ?? Colors.peach }]}>
+                    <Text style={styles.emotionDotTxt}>{entry.emotionEmoji}</Text>
+                  </View>
+                )}
               </View>
               {persona && (
                 <View style={[styles.personaBadge, { backgroundColor: persona.accentLight ?? Colors.peachLight }]}>
-                  <Text style={[styles.personaBadgeTxt, { color: persona.accentColor }]}>{persona.emoji} {persona.name}</Text>
+                  <Text style={[styles.personaBadgeTxt, { color: persona.accentColor }]}>{persona.name}</Text>
                 </View>
               )}
               <View style={styles.divider} />
@@ -502,7 +512,7 @@ export default function DiaryDetailScreen() {
                 key={s.id}
                 sticker={s}
                 canvasW={CANVAS_W}
-                canvasH={CANVAS_H}
+                canvasH={canvasHeight(segments.length)}
                 isInteractive={isDecoMode}
                 onUpdate={updateSticker}
                 onDelete={deleteSticker}
@@ -521,22 +531,35 @@ export default function DiaryDetailScreen() {
             <Text style={styles.toolBtnLabel}>폰트</Text>
           </TouchableOpacity>
           <View style={styles.toolDivider} />
-          <TouchableOpacity style={styles.toolBtn} onPress={() => setPickerVisible(true)}>
-            <Text style={styles.toolBtnIcon}>🎀</Text>
-            <Text style={styles.toolBtnLabel}>이모티콘</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={styles.toolBtn} onPress={() => setWebStickerVisible(true)}>
-            <Text style={styles.toolBtnIcon}>🌐</Text>
-            <Text style={styles.toolBtnLabel}>인터넷</Text>
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={Colors.textSecondary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+              <Path d="M8.5 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill={Colors.textSecondary} stroke="none" />
+              <Path d="M15.5 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill={Colors.textSecondary} stroke="none" />
+              <Path d="M12 18c3.31 0 6-2.69 6-6H6c0 3.31 2.69 6 6 6z" />
+            </Svg>
+            <Text style={styles.toolBtnLabel}>스티커</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolBtn} onPress={handlePickPhotoSticker} disabled={processingPhoto}>
+          <TouchableOpacity style={styles.toolBtn} onPress={handlePasteSubject} disabled={processingPhoto}>
             {processingPhoto
               ? <ActivityIndicator size="small" color={Colors.peachDark} />
               : <>
-                  <Text style={styles.toolBtnIcon}>✂️</Text>
-                  <Text style={styles.toolBtnLabel}>피사체</Text>
+                  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={Colors.textSecondary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <Rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                    <Path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                    <Path d="M12 11v6M9 14l3-3 3 3" />
+                  </Svg>
+                  <Text style={styles.toolBtnLabel}>붙여넣기</Text>
                 </>
             }
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.toolBtn} onPress={handlePickFromGallery} disabled={processingPhoto}>
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={Colors.textSecondary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <Rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <Circle cx="8.5" cy="8.5" r="1.5" fill={Colors.textSecondary} stroke="none" />
+              <Path d="M21 15l-5-5L5 21" />
+            </Svg>
+            <Text style={styles.toolBtnLabel}>갤러리</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -638,7 +661,12 @@ const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 10 },
   dateDay: { fontSize: 48, fontWeight: '700', color: Colors.text, lineHeight: 52 },
   dateMonthYear: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: '500', marginBottom: 4 },
-  emotionEmoji: { fontSize: 40 },
+  emotionDot: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+    opacity: 0.85,
+  },
+  emotionDotTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
   personaBadge: {
     alignSelf: 'flex-start', borderRadius: Radius.full,
     paddingHorizontal: Spacing.md, paddingVertical: 4, marginBottom: 10,

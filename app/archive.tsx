@@ -107,7 +107,9 @@ export default function ArchiveScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📓</Text>
+            <View style={styles.emptyIcon}>
+              <Text style={styles.emptyIconTxt}>—</Text>
+            </View>
             <Text style={styles.emptyText}>
               {selectedDate
                 ? '이 날은 기록된 일기가 없어요'
@@ -130,7 +132,10 @@ function NotebookCard({
   const persona = PERSONAS.find((p) => p.id === entry.persona_id);
   const accentColor = persona?.accentColor ?? Colors.peach;
   const accentLight = persona?.accentLight ?? Colors.peachLight;
-  const coverEmoji = entry.emotionEmoji ?? persona?.emoji ?? '📔';
+  const preview = entry.summary
+    ?? (entry.contentSegments?.[0])
+    ?? entry.messages.find((m) => m.role === 'user')?.content
+    ?? '';
 
   return (
     <TouchableOpacity
@@ -139,25 +144,20 @@ function NotebookCard({
       onPress={onPress}
       onLongPress={onDelete}
     >
-      {/* Cover area */}
-      <View style={[styles.cover, { backgroundColor: accentLight }]}>
-        {/* Persona badge */}
+      {/* Cover — accent stripe + text preview */}
+      <View style={[styles.cover, { backgroundColor: '#FAFAFA' }]}>
+        <View style={[styles.coverStripe, { backgroundColor: accentColor }]} />
+        <Text style={styles.coverPreview} numberOfLines={4}>{preview}</Text>
         <View style={[styles.personaBadge, { backgroundColor: accentColor }]}>
           <Text style={styles.personaBadgeTxt}>{persona?.name ?? '친구'}</Text>
         </View>
-        {/* Big emoji */}
-        <Text style={styles.coverEmoji}>{coverEmoji}</Text>
       </View>
 
       {/* Card body */}
       <View style={styles.cardBody}>
-        {entry.title ? (
-          <Text style={styles.cardTitle} numberOfLines={2}>{entry.title}</Text>
-        ) : (
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {entry.messages.find((m) => m.role === 'user')?.content ?? '새 일기'}
-          </Text>
-        )}
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {entry.title || entry.messages.find((m) => m.role === 'user')?.content || '새 일기'}
+        </Text>
         <Text style={styles.cardDate}>{formatDate(entry.created_at)}</Text>
         <Text style={[styles.cardCount, { color: accentColor }]}>
           {entry.messages.length}개의 대화
@@ -219,13 +219,25 @@ const styles = StyleSheet.create({
   },
   cover: {
     height: COVER_H,
-    alignItems: 'center',
-    justifyContent: 'center',
     position: 'relative',
+    overflow: 'hidden',
+  },
+  coverStripe: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 4,
+  },
+  coverPreview: {
+    fontSize: 10,
+    color: '#555',
+    lineHeight: 15,
+    paddingHorizontal: 10,
+    paddingTop: 14,
+    paddingBottom: 20,
   },
   personaBadge: {
     position: 'absolute',
-    top: 8,
+    bottom: 6,
     right: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -236,9 +248,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  coverEmoji: {
-    fontSize: 36,
   },
   cardBody: {
     padding: 10,
@@ -260,7 +269,13 @@ const styles = StyleSheet.create({
   },
 
   empty: { alignItems: 'center', paddingTop: 48, paddingHorizontal: Spacing.xl },
-  emptyEmoji: { fontSize: 48, marginBottom: Spacing.md },
+  emptyIcon: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: Colors.grayLight,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  emptyIconTxt: { fontSize: 24, color: Colors.textMuted, fontWeight: '300' },
   emptyText: {
     fontSize: FontSize.sm, color: Colors.textMuted,
     textAlign: 'center', lineHeight: 22,

@@ -4,66 +4,100 @@ import {
   StyleSheet, ActivityIndicator, ScrollView, Alert, Dimensions,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Clipboard from 'expo-clipboard';
 import { Colors, FontSize, Spacing, Radius } from '../constants/theme';
 
 const { width: SW } = Dimensions.get('window');
+const COLS = 4;
+const CELL = Math.floor((SW - 40) / COLS);
 
-const TWEMOJI_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72';
-const NOTO_CDN = 'https://raw.githubusercontent.com/googlefonts/noto-emoji/main/png/72';
-
-const COLS = 5;
-const CELL = Math.floor((SW - 32) / COLS);
-
-type StickerStyle = 'twemoji' | 'noto';
-
-function stickerUrl(code: string, style: StickerStyle): string {
-  const c = code.toLowerCase();
-  if (style === 'noto') {
-    return `${NOTO_CDN}/emoji_u${c}.png`;
-  }
-  return `${TWEMOJI_CDN}/${c}.png`;
+// Microsoft Fluent Emoji 3D — MIT licensed illustrated stickers (NOT iPhone emoji)
+const FLUENT = 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets';
+function fluentUrl(name: string) {
+  const e = encodeURIComponent(name);
+  return `${FLUENT}/${e}/3D/${e}_3d.png`;
 }
 
-const CATEGORIES: { label: string; codes: string[] }[] = [
+const CATEGORIES: { label: string; items: string[] }[] = [
   {
-    label: '💕 하트',
-    codes: ['2764','1f9e1','1f49b','1f49a','1f499','1f49c','1f90d','1f5a4','1f493','1f494','1f495','1f496','1f497','1f498','1f49d','1f49e','1f48c','2665','1f970','1f60d'],
+    label: '하트',
+    items: [
+      'Red heart','Orange heart','Yellow heart','Green heart','Blue heart',
+      'Purple heart','Pink heart','Brown heart','White heart','Sparkling heart',
+      'Heart with arrow','Revolving hearts','Two hearts','Growing heart',
+      'Beating heart','Love letter',
+    ],
   },
   {
-    label: '🌸 꽃·자연',
-    codes: ['1f338','1f33a','1f33b','1f339','1f337','1f490','1f33c','1f33f','1f342','1f343','1f331','1f344','1f340','1f332','1f333','1f334','1f335','1f4ab','2618','1f30e'],
+    label: '동물',
+    items: [
+      'Cat face','Dog face','Rabbit face','Hamster','Frog','Bear','Panda',
+      'Koala','Fox','Pig face','Hatching chick','Baby chick','Penguin',
+      'Seal','Hedgehog','Otter','Sloth','Flamingo',
+    ],
   },
   {
-    label: '🐱 동물',
-    codes: ['1f431','1f436','1f430','1f43b','1f98a','1f43c','1f428','1f439','1f43f','1f987','1f98b','1f41d','1f43e','1f425','1f40d','1f422','1f40c','1f41e','1f420','1f421'],
+    label: '꽃·식물',
+    items: [
+      'Cherry blossom','Rose','Sunflower','Tulip','Bouquet','Hibiscus',
+      'Blossom','Fallen leaf','Maple leaf','Four leaf clover','Seedling',
+      'Mushroom','Herb','Shamrock','Potted plant','Lotus',
+    ],
   },
   {
-    label: '🍰 음식·음료',
-    codes: ['1f370','1f9c1','1f353','1f369','2615','1f9cb','1f36a','1f36b','1f36d','1f351','1f352','1f34b','1f382','1f9c0','1f36e','1f967','1f950','1f9c3','1f95e','1f9c7'],
+    label: '음식·디저트',
+    items: [
+      'Strawberry','Birthday cake','Cookie','Lollipop','Doughnut','Candy',
+      'Chocolate bar','Cupcake','Honey pot','Hot beverage','Ice cream',
+      'Shortcake','Pancakes','Waffle','Croissant','Bubble tea',
+    ],
   },
   {
-    label: '⭐ 별·빛',
-    codes: ['2728','1f31f','2b50','1f4ab','1f319','1f308','1f31e','1f31d','26a1','1f4a5','1f7e1','1f7e0','1f534','1f7e3','1f535','1f7e2','1f7e4','1f7e5','1f7e6','1f7e7'],
+    label: '별·달',
+    items: [
+      'Sparkles','Glowing star','Star','Dizzy','Rainbow','Sun with face',
+      'Full moon face','Crescent moon','Snowflake','Fire','Shooting star',
+      'Cloud','Sun','Comet','Night with stars',
+    ],
   },
   {
-    label: '🎉 파티·데코',
-    codes: ['1f38a','1f389','1f381','1f380','1fa84','1f3b5','1f3b6','1f4dd','1f4f8','1f302','1f9e8','1f48c','1f4da','1f3a8','1f58a','270f','1f4cc','1f4cd','1f4ce','1f4cf'],
+    label: '파티·선물',
+    items: [
+      'Party popper','Confetti ball','Balloon','Wrapped gift','Musical notes',
+      'Ribbon','Sparkler','Crystal ball','Fireworks','Carousel horse',
+      'Camera','Microphone','Clapper board',
+    ],
   },
   {
-    label: '👑 리본·왕관',
-    codes: ['1f451','1f48d','1f484','1f380','1f9e2','1f393','1f3a9','1f452','1fa77','1fa76','1fa75','1f461','1f462','1f45f','1f460','1f45e','1f45c','1f45b','1f458','1f457'],
+    label: '악세사리',
+    items: [
+      'Crown','Ring','Gem stone','Top hat','Graduation cap','Billed cap',
+      'Sunglasses','Lipstick','Nail polish','Handbag','High-heeled shoe','Backpack',
+    ],
   },
   {
-    label: '🌙 무드·날씨',
-    codes: ['1f319','2600','26c5','1f327','2744','1f308','1f324','1f325','1f326','1f328','2614','2603','26c4','1f321','2615','1f30a','1f332','26fa','1f303','1f304'],
+    label: '날씨',
+    items: [
+      'Rainbow','Cloud with rain','Cloud with snow','Cloud with lightning',
+      'Umbrella','Snowman without snow','Sun behind small cloud',
+      'Cyclone','Wind face','Snowflake','Water wave','Droplet',
+    ],
   },
   {
-    label: '🎨 예술·취미',
-    codes: ['1f3a8','1f58c','270f','1f4f7','1f4f9','1f3b8','1f3b9','1f3ba','1f3bb','1f941','1f4d6','1f4f0','1f4bb','1f4f1','1f50d','1f9ea','1f52d','1f3af','1f3ae','1f579'],
+    label: '과일',
+    items: [
+      'Strawberry','Cherry','Grapes','Watermelon','Peach','Red apple',
+      'Lemon','Pineapple','Mango','Banana','Kiwi fruit','Tangerine',
+    ],
   },
   {
-    label: '✈️ 여행',
-    codes: ['2708','1f697','1f6b2','1f9f3','1f3d6','1f3d4','1f3e0','1f3aa','1f3a1','1f3a2','1f387','1f386','26f2','1f30a','1f5fe','1f303','1f304','1f305','1f306','1f307'],
+    label: '표정',
+    items: [
+      'Smiling face with hearts','Star-struck','Smiling face with heart-eyes',
+      'Winking face','Hugging face','Face with tears of joy',
+      'Slightly smiling face','Face blowing a kiss','Partying face',
+      'Pleading face','Melting face','Nerd face',
+    ],
   },
 ];
 
@@ -76,23 +110,24 @@ interface Props {
 export default function WebStickerPicker({ visible, onAdd, onClose }: Props) {
   const [selectedCat, setSelectedCat] = useState(0);
   const [downloading, setDownloading] = useState<string | null>(null);
-  const [style, setStyle] = useState<StickerStyle>('twemoji');
+  const [failedItems, setFailedItems] = useState<Set<string>>(new Set());
+  const [pasting, setPasting] = useState(false);
 
-  async function handleSelect(code: string) {
+  async function handleSelect(name: string) {
     if (downloading) return;
-    setDownloading(code);
+    setDownloading(name);
     try {
-      const cacheKey = `${style}_${code}`;
-      const localPath = `${FileSystem.cacheDirectory}sticker_${cacheKey}.png`;
+      const key = name.replace(/\s+/g, '_');
+      const localPath = `${FileSystem.cacheDirectory}fluent_${key}.png`;
       const info = await FileSystem.getInfoAsync(localPath);
-      let finalUri: string;
+      let uri: string;
       if (info.exists) {
-        finalUri = localPath;
+        uri = localPath;
       } else {
-        const dl = await FileSystem.downloadAsync(stickerUrl(code, style), localPath);
-        finalUri = dl.uri;
+        const dl = await FileSystem.downloadAsync(fluentUrl(name), localPath);
+        uri = dl.uri;
       }
-      onAdd(finalUri);
+      onAdd(uri);
       onClose();
     } catch {
       Alert.alert('다운로드 실패', '인터넷 연결을 확인해 주세요.');
@@ -101,50 +136,61 @@ export default function WebStickerPicker({ visible, onAdd, onClose }: Props) {
     }
   }
 
-  const codes = CATEGORIES[selectedCat].codes;
+  async function handlePaste() {
+    setPasting(true);
+    try {
+      const result = await Clipboard.getImageAsync({ format: 'png' });
+      if (!result?.data) {
+        Alert.alert(
+          '클립보드에 이미지 없음',
+          '아이폰 스티커 키보드에서 스티커를 꾹 누른 뒤 "복사"를 먼저 해주세요.\n\n또는 사진 앱에서 피사체를 꾹 눌러 "피사체 복사"를 해보세요.',
+        );
+        return;
+      }
+      const uri = `${FileSystem.cacheDirectory}clip_${Date.now()}.png`;
+      await FileSystem.writeAsStringAsync(uri, result.data, { encoding: 'base64' });
+      onAdd(uri);
+      onClose();
+    } catch {
+      Alert.alert('오류', '붙여넣기에 실패했어요.');
+    } finally {
+      setPasting(false);
+    }
+  }
 
-  const creditText = style === 'twemoji'
-    ? 'Twemoji · CC BY 4.0'
-    : 'Noto Emoji · Apache 2.0 · Google';
+  const items = CATEGORIES[selectedCat].items.filter(n => !failedItems.has(n));
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.root}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>인터넷 스티커</Text>
+          <Text style={styles.title}>스티커</Text>
           <TouchableOpacity onPress={onClose} hitSlop={12}>
             <Text style={styles.closeTxt}>✕</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Style selector */}
-        <View style={styles.styleRow}>
-          <Text style={styles.styleLabel}>스타일:</Text>
-          <TouchableOpacity
-            style={[styles.styleChip, style === 'twemoji' && styles.styleChipActive]}
-            onPress={() => setStyle('twemoji')}
-          >
-            <Text style={[styles.styleChipTxt, style === 'twemoji' && styles.styleChipTxtActive]}>
-              🟠 Twemoji
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.styleChip, style === 'noto' && styles.styleChipActiveNoto]}
-            onPress={() => setStyle('noto')}
-          >
-            <Text style={[styles.styleChipTxt, style === 'noto' && styles.styleChipTxtActiveNoto]}>
-              🔵 Noto
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* iOS sticker paste banner */}
+        <TouchableOpacity style={styles.pasteBanner} onPress={handlePaste} disabled={pasting} activeOpacity={0.8}>
+          {pasting
+            ? <ActivityIndicator size="small" color={Colors.peachDark} />
+            : <>
+                <Text style={styles.pasteBannerIcon}>[ ]</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pasteBannerTitle}>아이폰 스티커 붙여넣기</Text>
+                  <Text style={styles.pasteBannerSub}>스티커 키보드에서 꾹 눌러 복사 후 탭하세요</Text>
+                </View>
+              </>
+          }
+        </TouchableOpacity>
+
+        <Text style={styles.sectionLabel}>일러스트 스티커</Text>
 
         {/* Category tabs */}
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabRow}
-          style={styles.tabScroll}
+          horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabRow} style={styles.tabScroll}
         >
           {CATEGORIES.map((cat, i) => (
             <TouchableOpacity
@@ -161,34 +207,34 @@ export default function WebStickerPicker({ visible, onAdd, onClose }: Props) {
 
         {/* Sticker grid */}
         <FlatList
-          key={`${style}_${selectedCat}`}
-          data={codes}
+          key={selectedCat}
+          data={items}
           numColumns={COLS}
-          keyExtractor={c => `${style}_${c}`}
+          keyExtractor={n => n}
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.row}
-          renderItem={({ item: code }) => (
+          renderItem={({ item: name }) => (
             <TouchableOpacity
               style={styles.cell}
-              onPress={() => handleSelect(code)}
+              onPress={() => handleSelect(name)}
               disabled={downloading !== null}
               activeOpacity={0.7}
             >
-              {downloading === code ? (
+              {downloading === name ? (
                 <ActivityIndicator size="small" color={Colors.peachDark} />
               ) : (
                 <Image
-                  source={{ uri: stickerUrl(code, style) }}
-                  style={styles.stickerImg}
+                  source={{ uri: fluentUrl(name) }}
+                  style={styles.img}
                   resizeMode="contain"
+                  onError={() => setFailedItems(prev => new Set([...prev, name]))}
                 />
               )}
             </TouchableOpacity>
           )}
         />
 
-        {/* Credit */}
-        <Text style={styles.credit}>{creditText}</Text>
+        <Text style={styles.credit}>Microsoft Fluent Emoji · MIT License</Text>
       </View>
     </Modal>
   );
@@ -198,29 +244,29 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: 4,
+    paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.sm,
   },
   title: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.text },
   closeTxt: { fontSize: 20, color: Colors.textSecondary },
-  styleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+
+  pasteBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.sm,
+    backgroundColor: Colors.peachLight,
+    borderRadius: Radius.lg, padding: 14,
+    borderWidth: 1.5, borderColor: Colors.peachDark,
   },
-  styleLabel: { fontSize: FontSize.xs, color: Colors.textSecondary, marginRight: 4 },
-  styleChip: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border,
-    backgroundColor: Colors.grayLight,
+  pasteBannerIcon: { fontSize: 18, color: Colors.peachDark, fontWeight: '700', width: 28, textAlign: 'center' },
+  pasteBannerTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.peachDark },
+  pasteBannerSub: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 1 },
+
+  sectionLabel: {
+    fontSize: FontSize.xs, fontWeight: '600', color: Colors.textMuted,
+    paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xs, letterSpacing: 0.5,
   },
-  styleChipActive: { borderColor: Colors.peachDark, backgroundColor: Colors.peachLight },
-  styleChipActiveNoto: { borderColor: Colors.lavenderDark, backgroundColor: Colors.lavenderLight },
-  styleChipTxt: { fontSize: FontSize.xs, fontWeight: '500', color: Colors.textSecondary },
-  styleChipTxtActive: { color: Colors.peachDark, fontWeight: '600' },
-  styleChipTxtActiveNoto: { color: Colors.lavenderDark, fontWeight: '600' },
+
   tabScroll: { flexGrow: 0 },
-  tabRow: {
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, gap: Spacing.xs,
-  },
+  tabRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, gap: Spacing.xs },
   tab: {
     paddingHorizontal: 14, paddingVertical: 7,
     borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border,
@@ -228,16 +274,14 @@ const styles = StyleSheet.create({
   },
   tabActive: { borderColor: Colors.peachDark, backgroundColor: Colors.peachLight },
   tabTxt: { fontSize: FontSize.xs, fontWeight: '500', color: Colors.textSecondary },
-  tabTxtActive: { color: Colors.peachDark, fontWeight: '600' },
-  grid: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  row: { justifyContent: 'space-between', marginBottom: 4 },
-  cell: {
-    width: CELL, height: CELL,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  stickerImg: { width: CELL - 8, height: CELL - 8 },
+  tabTxtActive: { color: Colors.peachDark, fontWeight: '700' },
+
+  grid: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16 },
+  row: { justifyContent: 'space-between', marginBottom: 8 },
+  cell: { width: CELL, height: CELL, alignItems: 'center', justifyContent: 'center' },
+  img: { width: CELL - 12, height: CELL - 12 },
+
   credit: {
-    fontSize: 10, color: Colors.textMuted, textAlign: 'center',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+    fontSize: 10, color: Colors.textMuted, textAlign: 'center', paddingBottom: Spacing.md,
   },
 });
