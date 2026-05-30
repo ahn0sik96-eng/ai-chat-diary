@@ -107,14 +107,19 @@ export async function sendMessage(
 
 export async function summarizeToDiary(
   messages: ChatMessage[]
-): Promise<{ title: string; content: string; emotionEmoji: string }> {
+): Promise<{ title: string; content: string; segments: string[]; emotionEmoji: string }> {
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
   if (!apiKey) {
     const firstMsg = messages.find((m) => m.role === 'user')?.content ?? '오늘 하루';
+    const seg1 = `오늘은 ${firstMsg}에 대해 이야기를 나눴다. 마음속 이야기를 꺼내놓으니 한결 가벼워진 느낌이 들었다.`;
+    const seg2 = '생각보다 많은 걸 털어놓았는데, 그게 오히려 좋았다. 가끔은 이렇게 말로 꺼내는 게 필요한 것 같다.';
+    const seg3 = '오늘 하루도 나름 잘 버텼다. 내일은 또 어떤 하루가 될지 모르지만, 일단 오늘은 이걸로 충분하다.';
+    const demoSegments = [seg1, seg2, seg3];
     return {
       title: firstMsg.slice(0, 15),
-      content: `오늘은 ${firstMsg}에 대해 이야기를 나눴다. 마음속 이야기를 꺼내놓으니 한결 가벼워진 느낌이 들었다.`,
+      content: demoSegments.join('\n\n'),
+      segments: demoSegments,
       emotionEmoji: '😊',
     };
   }
@@ -133,13 +138,18 @@ export async function summarizeToDiary(
 
   try {
     const parsed = JSON.parse(text || '{}');
+    const segments: string[] = Array.isArray(parsed.segments) && parsed.segments.length > 0
+      ? parsed.segments
+      : (parsed.content ? [parsed.content] : [text]);
+    const content = segments.join('\n\n');
     return {
       title: parsed.title ?? '오늘의 일기',
-      content: parsed.content ?? text,
+      content,
+      segments,
       emotionEmoji: parsed.emotionEmoji ?? '😊',
     };
   } catch {
-    return { title: '오늘의 일기', content: text, emotionEmoji: '😊' };
+    return { title: '오늘의 일기', content: text, segments: [text], emotionEmoji: '😊' };
   }
 }
 

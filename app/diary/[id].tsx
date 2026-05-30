@@ -18,7 +18,6 @@ import { removeBackground } from '../../utils/imageProcessing';
 import { PERSONAS } from '../../constants/personas';
 import { FONTS, STORE_ITEMS } from '../../constants/decorations';
 import { Colors, Radius, Spacing, FontSize } from '../../constants/theme';
-import { useTextLayout } from '../../hooks/useTextLayout';
 
 import PaperCanvas from '../../components/PaperCanvas';
 import StickerGestureView from '../../components/StickerGestureView';
@@ -35,6 +34,24 @@ const PADDING_X = 20;
 const HEADER_H = 140;
 const LINE_H = 28;
 const FONT_SIZE = 15;
+const SEGMENT_SLOT = 190; // px allocated per segment (text + sticker space below)
+
+function segmentTop(i: number) {
+  return HEADER_H + i * SEGMENT_SLOT;
+}
+
+function splitIntoSegments(text: string): string[] {
+  // Split by double newline or sentences, produce 3-5 segments
+  const byNewline = text.split(/\n\n+/).filter(s => s.trim());
+  if (byNewline.length >= 2) return byNewline;
+  // Split by period-based sentences into chunks of 2-3 sentences
+  const sentences = text.match(/[^.!?]+[.!?]+/g) ?? [text];
+  const chunks: string[] = [];
+  for (let i = 0; i < sentences.length; i += 2) {
+    chunks.push(sentences.slice(i, i + 2).join(' ').trim());
+  }
+  return chunks.length > 0 ? chunks : [text];
+}
 
 type ScreenMode = 'read' | 'decorate' | 'draw';
 type ViewTab   = 'diary' | 'chat';
@@ -48,7 +65,7 @@ export default function DiaryDetailScreen() {
   const [stickers,  setStickers]  = useState<PlacedSticker[]>([]);
   const [strokes,   setStrokes]   = useState<DrawingStroke[]>([]);
   const [undoStack, setUndoStack] = useState<DrawingStroke[][]>([]);
-  const [summaryText, setSummaryText] = useState('');
+  const [segments,  setSegments]  = useState<string[]>([]);
   const [selectedFont, setSelectedFont] = useState<string | undefined>(undefined);
   const [unlockedPackIds, setUnlockedPackIds] = useState<string[]>([]);
 
@@ -89,7 +106,8 @@ export default function DiaryDetailScreen() {
     setEntry(found);
     setStickers(found.stickers ?? []);
     setStrokes(found.drawingStrokes ?? []);
-    setSummaryText(found.summary ?? '');
+    const segs = found.contentSegments ?? (found.summary ? splitIntoSegments(found.summary) : []);
+    setSegments(segs);
     setSelectedFont(found.font);
     const packs = STORE_ITEMS
       .filter(i => i.type === 'sticker' && purchased.includes(i.id))
@@ -102,9 +120,9 @@ export default function DiaryDetailScreen() {
     if (!entry) return;
     setSaving(true);
     await updateDiaryDecoration(entry.id, {
-      font: selectedFont, stickers, summary: summaryText, drawingStrokes: strokes,
+      font: selectedFont, stickers, summary: segments.join('\n\n'), contentSegments: segments, drawingStrokes: strokes,
     });
-    setEntry(prev => prev ? { ...prev, font: selectedFont, stickers, summary: summaryText, drawingStrokes: strokes } : null);
+    setEntry(prev => prev ? { ...prev, font: selectedFont, stickers, summary: segments.join('\n\n'), contentSegments: segments, drawingStrokes: strokes } : null);
     setSaving(false);
     Alert.alert('저장 완료', '꾸미기가 저장되었어요.');
     setMode('read');
@@ -269,12 +287,6 @@ export default function DiaryDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }
 
-  // ── Text layout ───────────────────────────────────────────────────────────
-  const textSegments = useTextLayout(
-    summaryText, FONT_SIZE, LINE_H, CANVAS_W, PADDING_X,
-    HEADER_H, stickers, CANVAS_H,
-  );
-
   if (!entry) return null;
 
   const persona = PERSONAS.find(p => p.id === entry.persona_id);
@@ -408,42 +420,63 @@ export default function DiaryDetailScreen() {
               <View style={styles.divider} />
             </View>
 
-            {/* Layer 3a: Text segments (diary content with wrapping) */}
+            {/* Layer 3a: Text segments (diary content — segmented layout) */}
             {(mode === 'read' ? tab === 'diary' : true) && tab !== 'chat' && (
               <View style={StyleSheet.absoluteFill} pointerEvents={isDrawMode ? 'none' : 'auto'}>
                 {mode !== 'decorate' ? (
-                  // Read mode: rendered word-wrapped segments
-                  textSegments.map((seg, i) => (
+                  // Read mode: one Text block per segment
+                  segments.map((seg, i) => (
                     <Text
                       key={i}
                       style={[
                         styles.diaryTxt,
                         selectedFont ? { fontFamily: selectedFont } : undefined,
-                        { position: 'absolute', left: seg.x, top: seg.y, maxWidth: seg.maxWidth },
+                        { position: 'absolute', top: segmentTop(i), left: PADDING_X, right: PADDING_X },
                       ]}
                     >
-                      {seg.text}
+                      {seg}
                     </Text>
                   ))
                 ) : (
-                  // Decorate mode: editable TextInput
-                  <TextInput
-                    value={summaryText}
-                    onChangeText={setSummaryText}
-                    multiline
-                    scrollEnabled={false}
-                    placeholder="일기를 입력해 보세요"
-                    placeholderTextColor={Colors.textMuted}
-                    style={[
-                      styles.diaryTxt,
-                      styles.diaryInput,
-                      selectedFont ? { fontFamily: selectedFont } : undefined,
-                      { top: HEADER_H, left: PADDING_X, right: PADDING_X },
-                    ]}
-                  />
+                  // Decorate mode: editable TextInput per segment
+                  segments.map((seg, i) => (
+                    <TextInput
+                      key={i}
+                      value={seg}
+                      onChangeText={(t) => setSegments(prev => prev.map((s, idx) => idx === i ? t : s))}
+                      multiline
+                      scrollEnabled={false}
+                      placeholder={`단락 ${i + 1}`}
+                      placeholderTextColor={Colors.textMuted}
+                      style={[
+                        styles.diaryTxt,
+                        styles.diaryInput,
+                        selectedFont ? { fontFamily: selectedFont } : undefined,
+                        { position: 'absolute', top: segmentTop(i), left: PADDING_X, right: PADDING_X },
+                      ]}
+                    />
+                  ))
                 )}
               </View>
             )}
+
+            {/* Segment separator lines — between text blocks, before sticker layer */}
+            {(mode === 'read' ? tab === 'diary' : true) && tab !== 'chat' && segments.slice(0, -1).map((_, i) => (
+              <View
+                key={`sep-${i}`}
+                style={{
+                  position: 'absolute',
+                  top: segmentTop(i + 1) - 20,
+                  left: PADDING_X,
+                  right: PADDING_X,
+                  height: 1,
+                  borderStyle: 'dashed',
+                  borderWidth: 1,
+                  borderColor: 'rgba(0,0,0,0.1)',
+                }}
+                pointerEvents="none"
+              />
+            ))}
 
             {/* Layer 3b: Chat bubbles (read mode only) */}
             {mode === 'read' && tab === 'chat' && (

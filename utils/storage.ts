@@ -35,6 +35,7 @@ export interface DiaryEntry {
   persona_id: string;
   title: string;
   summary?: string;
+  contentSegments?: string[];
   emotionEmoji?: string;
   messages: ChatMessage[];
   created_at: string;
@@ -86,7 +87,7 @@ export async function loadDiaryEntries(): Promise<DiaryEntry[]> {
 
 export async function updateDiaryDecoration(
   id: string,
-  patch: { font?: string; stickers?: PlacedSticker[]; summary?: string; drawingStrokes?: DrawingStroke[] }
+  patch: { font?: string; stickers?: PlacedSticker[]; summary?: string; contentSegments?: string[]; drawingStrokes?: DrawingStroke[] }
 ): Promise<void> {
   const all = await loadDiaryEntries();
   const updated = all.map((e) => (e.id === id ? { ...e, ...patch } : e));

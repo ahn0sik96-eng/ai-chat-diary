@@ -170,6 +170,7 @@ export default function ChatScreen() {
         persona_id: persona.id,
         title: diary.title,
         summary: diary.content,
+        contentSegments: diary.segments,
         emotionEmoji: diary.emotionEmoji,
         messages: cleanMessages,
       });
