@@ -71,6 +71,15 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
       elements      TEXT NOT NULL,   -- JSON: CanvasElement[]
       updatedAt     INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS calendar_events (
+      id          TEXT PRIMARY KEY NOT NULL,
+      title       TEXT NOT NULL,
+      date        TEXT NOT NULL,     -- YYYY-MM-DD
+      sessionId   TEXT,
+      createdAt   INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_events_date ON calendar_events (date);
   `);
 }
 
@@ -78,6 +87,7 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
 export async function resetDb(): Promise<void> {
   const db = await getDb();
   await db.execAsync(`
+    DROP TABLE IF EXISTS calendar_events;
     DROP TABLE IF EXISTS diary_layouts;
     DROP TABLE IF EXISTS diaries;
     DROP TABLE IF EXISTS chat_messages;

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -12,7 +13,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
-import { Diary } from '@/types';
+import { EventRepository } from '@/data/repositories/EventRepository';
+import { CalendarEvent, Diary } from '@/types';
 import { colors, radius, shadow, spacing, typography } from '@/theme/tokens';
 
 const MONTHS_BACK = 24;
@@ -33,6 +35,7 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList<Month>>(null);
   const [byDate, setByDate] = useState<Record<string, Diary[]>>({});
+  const [eventsByDate, setEventsByDate] = useState<Record<string, CalendarEvent[]>>({});
 
   const months = useMemo<Month[]>(() => {
     const now = new Date();
@@ -56,6 +59,11 @@ export default function CalendarScreen() {
           (map[k] ||= []).push(d);
         }
         setByDate(map);
+      });
+      EventRepository.list().then((list) => {
+        const map: Record<string, CalendarEvent[]> = {};
+        for (const e of list) (map[e.date] ||= []).push(e);
+        setEventsByDate(map);
       });
     }, []),
   );
@@ -115,7 +123,13 @@ export default function CalendarScreen() {
           if (i !== activeIndex) setActiveIndex(i);
         }}
         renderItem={({ item }) => (
-          <MonthGrid width={width} year={item.year} month={item.month} byDate={byDate} />
+          <MonthGrid
+            width={width}
+            year={item.year}
+            month={item.month}
+            byDate={byDate}
+            eventsByDate={eventsByDate}
+          />
         )}
       />
 
@@ -134,11 +148,13 @@ function MonthGrid({
   year,
   month,
   byDate,
+  eventsByDate,
 }: {
   width: number;
   year: number;
   month: number;
   byDate: Record<string, Diary[]>;
+  eventsByDate: Record<string, CalendarEvent[]>;
 }) {
   const cells = useMemo(() => {
     const firstWeekday = new Date(year, month, 1).getDay();
@@ -158,13 +174,26 @@ function MonthGrid({
     <View style={[gridStyles.page, { width }]}>
       {cells.map((d, i) => {
         if (d == null) return <View key={`b${i}`} style={gridStyles.cell} />;
-        const diaries = byDate[dateKey(year, month, d)];
+        const key = dateKey(year, month, d);
+        const diaries = byDate[key];
+        const events = eventsByDate[key];
         const cover = diaries?.find((x) => x.coverImageUri)?.coverImageUri;
-        const has = !!diaries?.length;
-        const onPress = () =>
-          has ? router.push(`/diary/${diaries![0].id}`) : router.push('/chat');
+        const hasDiary = !!diaries?.length;
+        const hasEvent = !!events?.length;
+        const onPress = () => {
+          if (hasDiary) {
+            router.push(`/diary/${diaries![0].id}`);
+          } else if (hasEvent) {
+            Alert.alert(
+              `${month + 1}월 ${d}일 일정`,
+              events!.map((e) => `· ${e.title}`).join('\n'),
+            );
+          } else {
+            router.push('/chat');
+          }
+        };
         return (
-          <Pressable key={dateKey(year, month, d)} style={gridStyles.cell} onPress={onPress}>
+          <Pressable key={key} style={gridStyles.cell} onPress={onPress}>
             <View style={[gridStyles.day, isToday(d) && gridStyles.today]}>
               {cover && <Image source={{ uri: cover }} style={gridStyles.cover} contentFit="cover" />}
               <Text
@@ -176,7 +205,12 @@ function MonthGrid({
               >
                 {d}
               </Text>
-              {has && !cover && <View style={gridStyles.dot} />}
+              {(hasDiary || hasEvent) && !cover && (
+                <View style={gridStyles.dotRow}>
+                  {hasDiary && <View style={gridStyles.dot} />}
+                  {hasEvent && <View style={[gridStyles.dot, gridStyles.eventDot]} />}
+                </View>
+              )}
             </View>
           </Pressable>
         );
@@ -240,5 +274,7 @@ const gridStyles = StyleSheet.create({
   num: { ...typography.body, fontSize: 15, color: colors.text },
   todayNum: { color: colors.onPrimary, fontWeight: '700' },
   numOnCover: { color: colors.onPrimary, fontWeight: '800' },
-  dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.accent, marginTop: 3 },
+  dotRow: { flexDirection: 'row', gap: 3, marginTop: 3 },
+  dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.accent },
+  eventDot: { backgroundColor: colors.accent2 },
 });

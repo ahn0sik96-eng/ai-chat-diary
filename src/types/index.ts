@@ -117,3 +117,12 @@ export interface DiaryLayout {
   elements: CanvasElement[];
   updatedAt: number;
 }
+
+/** A schedule/event extracted from a chat conversation. */
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  sessionId?: string;
+  createdAt: number;
+}

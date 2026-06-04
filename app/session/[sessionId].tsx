@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -14,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatRepository } from '@/data/repositories/ChatRepository';
-import { ChatSession } from '@/types';
+import { CalendarEvent, ChatSession } from '@/types';
 import { getPersona } from '@/config/personas';
 import { useChat } from '@/hooks/useChat';
 import { MessageBubble } from '@/components/chat/MessageBubble';
@@ -32,7 +33,18 @@ export default function ChatScreen() {
     if (sessionId) ChatRepository.getSession(sessionId).then(setSession);
   }, [sessionId]);
 
-  const { messages, sending, error, send } = useChat(sessionId, session?.personaId);
+  const onEventsAdded = useCallback((events: CalendarEvent[]) => {
+    const lines = events
+      .map((e) => `· ${e.title} (${e.date.replaceAll('-', '. ')})`)
+      .join('\n');
+    Alert.alert('📅 캘린더에 일정 추가', `대화에서 일정을 찾았어요!\n\n${lines}`);
+  }, []);
+
+  const { messages, sending, error, send } = useChat(
+    sessionId,
+    session?.personaId,
+    onEventsAdded,
+  );
   const persona = session ? getPersona(session.personaId) : null;
 
   useEffect(() => {
