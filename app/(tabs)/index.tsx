@@ -52,7 +52,9 @@ function DiaryCard({ diary }: { diary: Diary }) {
   return (
     <Pressable style={styles.card} onPress={() => router.push(`/diary/${diary.id}`)}>
       {diary.coverImageUri ? (
-        <Image source={{ uri: diary.coverImageUri }} style={styles.cover} contentFit="cover" />
+        <View style={styles.cover}>
+          <Image source={{ uri: diary.coverImageUri }} style={styles.coverImg} contentFit="cover" />
+        </View>
       ) : (
         <View style={[styles.cover, styles.coverFallback]}>
           {diary.sentences.slice(0, 3).map((s) => (
@@ -89,7 +91,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  cover: { width: '100%', aspectRatio: 1000 / 1400, backgroundColor: colors.surface },
+  cover: { width: '100%', aspectRatio: 1000 / 1400, backgroundColor: colors.surface, overflow: 'hidden' },
+  coverImg: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.06 }] },
   coverFallback: { padding: spacing.md, gap: 6, justifyContent: 'center' },
   fallbackText: { ...typography.caption, color: colors.text },
   cardMeta: { padding: spacing.md },
