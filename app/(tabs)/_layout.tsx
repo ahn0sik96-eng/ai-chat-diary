@@ -1,11 +1,13 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/tokens';
 
 const HAIRLINE = 0.5;
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -19,9 +21,11 @@ export default function TabsLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: HAIRLINE,
-          height: 64,
-          paddingTop: 6,
+          height: 64 + insets.bottom,
+          paddingTop: 12,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
         },
+        tabBarItemStyle: { paddingTop: 2 },
       }}
     >
       {/* Feed (grid) */}
