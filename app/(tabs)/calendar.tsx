@@ -11,10 +11,9 @@ import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
 import { Diary } from '@/types';
-import { colors, gradients, radius, shadow, spacing, typography } from '@/theme/tokens';
+import { colors, radius, shadow, spacing, typography } from '@/theme/tokens';
 
 const MONTHS_BACK = 24;
 const MONTHS_FWD = 12;
@@ -120,15 +119,11 @@ export default function CalendarScreen() {
         )}
       />
 
-      <Pressable style={[styles.fab, { bottom: insets.bottom + spacing.md }]} onPress={() => router.push('/chat')}>
-        <LinearGradient
-          colors={gradients.brand}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fabFill}
-        >
-          <Ionicons name="add" size={30} color={colors.onPrimary} />
-        </LinearGradient>
+      <Pressable
+        style={[styles.fab, { bottom: insets.bottom + spacing.md }]}
+        onPress={() => router.push('/chat')}
+      >
+        <Ionicons name="add" size={30} color={colors.onPrimary} />
       </Pressable>
     </View>
   );
@@ -222,10 +217,11 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    overflow: 'hidden',
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...shadow.float,
   },
-  fabFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
 
 const gridStyles = StyleSheet.create({

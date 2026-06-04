@@ -1,13 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
 import { Diary } from '@/types';
 import { DIARY_STYLES } from '@/config/diaryStyles';
-import { colors, gradients, radius, spacing, typography } from '@/theme/tokens';
+import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 export default function FeedScreen() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
@@ -37,16 +36,9 @@ export default function FeedScreen() {
             <Text style={styles.emptyText}>
               채팅에서 대화를 나누고{'\n'}오늘 하루를 일기로 남겨보세요.
             </Text>
-            <Pressable onPress={() => router.push('/chat')} style={styles.cta}>
-              <LinearGradient
-                colors={gradients.brand}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.ctaFill}
-              >
-                <Text style={styles.ctaText}>대화 시작하기</Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.onPrimary} />
-              </LinearGradient>
+            <Pressable onPress={() => router.push('/chat')} style={[styles.cta, styles.ctaFill]}>
+              <Text style={styles.ctaText}>대화 시작하기</Text>
+              <Ionicons name="arrow-forward" size={16} color={colors.onPrimary} />
             </Pressable>
           </View>
         }
@@ -119,9 +111,11 @@ const styles = StyleSheet.create({
   ctaFill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
   },
   ctaText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
 });

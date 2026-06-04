@@ -148,7 +148,7 @@ export default function SummarizeScreen() {
         );
       })}
       {error && <Text style={styles.error}>{error}</Text>}
-      <Button label="일기 만들기" variant="gradient" onPress={generate} style={{ marginTop: spacing.lg }} />
+      <Button label="일기 만들기" variant="primary" onPress={generate} style={{ marginTop: spacing.lg }} />
     </ScrollView>
   );
 }
