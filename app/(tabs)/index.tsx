@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
 import { EventRepository } from '@/data/repositories/EventRepository';
 import { CalendarEvent, Diary } from '@/types';
-import { colors, radius, shadow, spacing, typography } from '@/theme/tokens';
+import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 const MONTHS_BACK = 24;
 const MONTHS_FWD = 12;
@@ -153,13 +153,6 @@ export default function CalendarScreen() {
           reloadEvents();
         }}
       />
-
-      <Pressable
-        style={[styles.fab, { bottom: insets.bottom + spacing.md }]}
-        onPress={() => router.push('/chat')}
-      >
-        <Ionicons name="add" size={30} color={colors.onPrimary} />
-      </Pressable>
     </View>
   );
 }
@@ -183,18 +176,18 @@ function DayPanel({
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.panelDate}>
-        {m}월 {d}일 <Text style={styles.panelWeekday}>{weekday}</Text>
-      </Text>
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelDate}>
+          {m}월 {d}일 <Text style={styles.panelWeekday}>{weekday}</Text>
+        </Text>
+        <Pressable style={styles.panelChat} onPress={() => router.push('/chat')}>
+          <Ionicons name="chatbubble-ellipses" size={15} color={colors.onPrimary} />
+          <Text style={styles.panelChatText}>대화하기</Text>
+        </Pressable>
+      </View>
 
       {empty ? (
-        <Pressable style={styles.panelEmpty} onPress={() => router.push('/chat')}>
-          <Text style={styles.panelEmptyText}>이 날의 기록이 없어요</Text>
-          <View style={styles.panelChat}>
-            <Ionicons name="chatbubble-ellipses" size={15} color={colors.onPrimary} />
-            <Text style={styles.panelChatText}>대화하기</Text>
-          </View>
-        </Pressable>
+        <Text style={styles.panelEmptyText}>이 날의 기록이 없어요</Text>
       ) : (
         <View style={{ gap: spacing.sm }}>
           {events.map((e) => (
@@ -336,9 +329,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
   },
-  panelDate: { ...typography.heading, marginBottom: spacing.md },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  panelDate: { ...typography.heading },
   panelWeekday: { ...typography.caption, color: colors.textMuted, fontWeight: '600' },
-  panelEmpty: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   panelEmptyText: { ...typography.caption },
   panelChat: {
     flexDirection: 'row',
@@ -362,17 +360,6 @@ const styles = StyleSheet.create({
   eventTitle: { ...typography.bodyStrong, flex: 1, fontSize: 14 },
   dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.accent },
   eventDotBig: { backgroundColor: colors.accent2 },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.float,
-  },
 });
 
 const gridStyles = StyleSheet.create({
