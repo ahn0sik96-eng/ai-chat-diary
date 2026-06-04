@@ -44,8 +44,16 @@ export default function DecorateScreen() {
   const undo = useDecorationStore((s) => s.undo);
   const updateTextStyle = useDecorationStore((s) => s.updateTextStyle);
   const toggleTextHidden = useDecorationStore((s) => s.toggleTextHidden);
+  const select = useDecorationStore((s) => s.select);
 
   const selected = elements.find((e) => e.id === selectedId) ?? null;
+
+  /** Deselect, wait a frame, then capture — so the selection outline isn't baked in. */
+  const captureClean = async (): Promise<string | null> => {
+    select(null);
+    await new Promise((r) => setTimeout(r, 80));
+    return captureViewAsPng(canvasRef);
+  };
 
   useEffect(() => {
     if (!diaryId) return;
@@ -70,7 +78,7 @@ export default function DecorateScreen() {
         elements,
       });
       // Capture a cover image for the feed (best-effort; unavailable in Expo Go).
-      const uri = await captureViewAsPng(canvasRef);
+      const uri = await captureClean();
       if (uri) await DiaryRepository.setCoverImage(diary.id, uri);
       router.replace(`/diary/${diary.id}`);
     } finally {
@@ -80,7 +88,7 @@ export default function DecorateScreen() {
 
   const saveToGallery = async () => {
     try {
-      const uri = await captureViewAsPng(canvasRef);
+      const uri = await captureClean();
       if (!uri) {
         Alert.alert('안내', '이미지 저장은 정식 빌드에서 지원돼요. (Expo Go에서는 미지원)');
         return;
