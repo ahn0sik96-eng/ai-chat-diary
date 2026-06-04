@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  cover: { width: '100%', aspectRatio: 1000 / 1400, backgroundColor: colors.surfaceAlt },
+  cover: { width: '100%', aspectRatio: 1000 / 1400, backgroundColor: colors.surface },
   coverFallback: { padding: spacing.md, gap: 6, justifyContent: 'center' },
   fallbackText: { ...typography.caption, color: colors.text },
   cardMeta: { padding: spacing.md },
