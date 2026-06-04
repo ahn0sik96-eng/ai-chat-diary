@@ -54,9 +54,7 @@ export default function DiaryView() {
         }}
       />
       <View style={styles.metaRow}>
-        <Text style={styles.styleTag}>
-          {styleConf.emoji} {styleConf.displayName}
-        </Text>
+        <Text style={styles.styleTag}>{styleConf.displayName}</Text>
         {diary.mood ? <Text style={styles.mood}>· {diary.mood}</Text> : null}
         <Text style={styles.date}>{new Date(diary.createdAt).toLocaleDateString('ko-KR')}</Text>
       </View>

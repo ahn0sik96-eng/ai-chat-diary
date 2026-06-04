@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import { captureViewAsPng } from '@/utils/capture';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
@@ -186,19 +187,19 @@ export default function DecorateScreen() {
       {/* Bottom action bar */}
       <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <ActionTab
-          icon="🌈"
+          icon="happy-outline"
           label="스티커"
           active={panel === 'sticker'}
           onPress={() => setPanel(panel === 'sticker' ? 'none' : 'sticker')}
         />
         <ActionTab
-          icon="🎨"
+          icon="color-palette-outline"
           label="배경"
           active={panel === 'background'}
           onPress={() => setPanel(panel === 'background' ? 'none' : 'background')}
         />
-        <ActionTab icon="↩️" label="실행취소" onPress={undo} />
-        <ActionTab icon="⬇️" label="갤러리" onPress={saveToGallery} />
+        <ActionTab icon="arrow-undo-outline" label="실행취소" onPress={undo} />
+        <ActionTab icon="download-outline" label="갤러리" onPress={saveToGallery} />
       </View>
     </View>
   );
@@ -263,15 +264,15 @@ function ActionTab({
   active,
   onPress,
 }: {
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   active?: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable style={styles.actionTab} onPress={onPress}>
-      <Text style={styles.actionIcon}>{icon}</Text>
-      <Text style={[styles.actionLabel, active && { color: colors.primary }]}>{label}</Text>
+      <Ionicons name={icon} size={22} color={active ? colors.text : colors.textMuted} />
+      <Text style={[styles.actionLabel, active && { color: colors.text }]}>{label}</Text>
     </Pressable>
   );
 }

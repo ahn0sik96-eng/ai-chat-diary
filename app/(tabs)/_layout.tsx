@@ -1,55 +1,64 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { ColorValue, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/tokens';
-
-function TabIcon({ icon, color }: { icon: string; color: ColorValue }) {
-  return <Text style={{ fontSize: 22, color }}>{icon}</Text>;
-}
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: colors.bg },
-        headerTitleStyle: { fontWeight: '800', fontSize: 20 },
+        headerTitleStyle: { fontWeight: '800', fontSize: 20, letterSpacing: -0.3 },
         headerShadowVisible: false,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textFaint,
+        tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 60,
-          paddingBottom: 8,
+          borderTopWidth: StyleSheet_hairline,
+          height: 64,
           paddingTop: 6,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: '일기',
           headerTitle: '마음일기',
-          tabBarIcon: ({ color }) => <TabIcon icon="📔" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="chat/index"
         options={{
-          title: '채팅',
-          headerTitle: '채팅',
-          tabBarIcon: ({ color }) => <TabIcon icon="💬" color={color} />,
+          headerShown: false,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'chatbubble' : 'chatbubble-outline'}
+              size={25}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: '프로필',
           headerTitle: '프로필',
-          tabBarIcon: ({ color }) => <TabIcon icon="🌷" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'person-circle' : 'person-circle-outline'}
+              size={28}
+              color={color}
+            />
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const StyleSheet_hairline = 0.5;

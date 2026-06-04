@@ -1,49 +1,59 @@
 /**
- * Design tokens — a soft, modern "Instagram meets cozy diary" aesthetic.
- * Keep all colors / spacing / typography here so the whole app stays consistent.
+ * Design tokens — modern, trendy, Instagram-flavored.
+ * Clean neutrals, bold type, a signature pink→violet gradient for brand moments.
  */
 
 export const colors = {
-  // Brand
-  primary: '#FF6B9D', // warm pink
-  primarySoft: '#FFE3EE',
-  accent: '#7C83FD', // soft indigo
-  accentSoft: '#E8E9FF',
+  // Brand / accent
+  primary: '#111114', // near-black: primary buttons, active states
+  accent: '#E1306C', // vivid insta pink (single-color fallback for the gradient)
+  accent2: '#7C4DFF', // violet
+  accentSoft: '#F4EEFF',
 
   // Surfaces
-  bg: '#FFF7FB',
+  bg: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceAlt: '#FBF1F6',
-  border: '#F0E0E9',
+  surfaceAlt: '#F6F6F8',
+  surfaceSunken: '#FAFAFB',
+  border: '#ECECEF',
+  borderStrong: '#DADADF',
 
   // Text
-  text: '#2A2230',
-  textMuted: '#8B8295',
-  textFaint: '#BcaFc0',
+  text: '#0B0B0F',
+  textMuted: '#8E8E93',
+  textFaint: '#BDBDC4',
   onPrimary: '#FFFFFF',
+  onAccent: '#FFFFFF',
 
   // Chat bubbles
-  bubbleUser: '#FF6B9D',
+  bubbleUser: '#111114',
   bubbleUserText: '#FFFFFF',
-  bubbleAi: '#F3EEF5',
-  bubbleAiText: '#2A2230',
+  bubbleAi: '#F1F1F4',
+  bubbleAiText: '#0B0B0F',
 
   // Status
-  success: '#4CAF93',
-  danger: '#F2545B',
-  warning: '#F5A623',
+  success: '#2BBE7B',
+  danger: '#FF3B5C',
+  warning: '#FF9F0A',
 
   // Canvas backgrounds (diary decoration)
   canvasOptions: [
     '#FFFFFF',
+    '#FAFAFB',
     '#FFF1F5',
-    '#FFF8E7',
+    '#FFF7E9',
     '#EAF7F0',
-    '#EAF0FF',
-    '#F6EFFF',
-    '#FBE9E7',
-    '#2A2230',
+    '#EEF1FF',
+    '#F4EEFF',
+    '#111114',
   ],
+} as const;
+
+/** Signature gradient used for FAB, active tab pill, primary highlights. */
+export const gradients = {
+  brand: ['#FE6AA9', '#9B5CFF'] as const, // pink -> violet
+  insta: ['#F58529', '#DD2A7B', '#8134AF', '#515BD4'] as const,
+  sunset: ['#FF9A8B', '#FF6A88', '#FF99AC'] as const,
 } as const;
 
 export const spacing = {
@@ -56,16 +66,17 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: 8,
-  md: 14,
-  lg: 20,
+  sm: 10,
+  md: 16,
+  lg: 22,
   xl: 28,
   pill: 999,
 } as const;
 
 export const typography = {
-  title: { fontSize: 24, fontWeight: '800' as const, color: colors.text },
-  heading: { fontSize: 19, fontWeight: '700' as const, color: colors.text },
+  display: { fontSize: 28, fontWeight: '800' as const, letterSpacing: -0.5, color: colors.text },
+  title: { fontSize: 22, fontWeight: '800' as const, letterSpacing: -0.3, color: colors.text },
+  heading: { fontSize: 18, fontWeight: '700' as const, letterSpacing: -0.2, color: colors.text },
   body: { fontSize: 15, fontWeight: '400' as const, color: colors.text },
   bodyStrong: { fontSize: 15, fontWeight: '600' as const, color: colors.text },
   caption: { fontSize: 13, fontWeight: '400' as const, color: colors.textMuted },
@@ -74,22 +85,21 @@ export const typography = {
 
 export const shadow = {
   card: {
-    shadowColor: '#7A2E50',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  float: {
-    shadowColor: '#7A2E50',
-    shadowOpacity: 0.18,
+    shadowColor: '#0B0B0F',
+    shadowOpacity: 0.06,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    elevation: 2,
+  },
+  float: {
+    shadowColor: '#0B0B0F',
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
   },
 } as const;
 
-/** Font families available for diary text blocks on the canvas. */
 export const diaryFonts = {
-  system: undefined, // platform default
+  system: undefined,
 } as const;

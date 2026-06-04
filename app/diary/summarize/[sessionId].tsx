@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { DIARY_STYLE_LIST } from '@/config/diaryStyles';
 import { summarizeConversation, SummaryResult } from '@/api/summarizeService';
 import { ChatRepository } from '@/data/repositories/ChatRepository';
@@ -18,6 +19,12 @@ import { Button } from '@/components/ui/Button';
 import { colors, radius, shadow, spacing, typography } from '@/theme/tokens';
 
 type Phase = 'pick' | 'loading' | 'preview';
+
+const STYLE_ICON: Record<DiaryStyle, keyof typeof Ionicons.glyphMap> = {
+  normal: 'document-text-outline',
+  emotional: 'heart-outline',
+  poetic: 'moon-outline',
+};
 
 export default function SummarizeScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -119,22 +126,29 @@ export default function SummarizeScreen() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.sectionTitle}>어떤 일기로 만들까요?</Text>
-      {DIARY_STYLE_LIST.map((s) => (
-        <Pressable
-          key={s.id}
-          style={[styles.styleCard, style === s.id && styles.styleCardActive]}
-          onPress={() => setStyle(s.id)}
-        >
-          <Text style={styles.styleEmoji}>{s.emoji}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.styleName}>{s.displayName}</Text>
-            <Text style={styles.styleDesc}>{s.description}</Text>
-          </View>
-          <View style={[styles.radio, style === s.id && styles.radioOn]} />
-        </Pressable>
-      ))}
+      {DIARY_STYLE_LIST.map((s) => {
+        const active = style === s.id;
+        return (
+          <Pressable
+            key={s.id}
+            style={[styles.styleCard, active && styles.styleCardActive]}
+            onPress={() => setStyle(s.id)}
+          >
+            <Ionicons
+              name={STYLE_ICON[s.id]}
+              size={22}
+              color={active ? colors.text : colors.textMuted}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.styleName}>{s.displayName}</Text>
+              <Text style={styles.styleDesc}>{s.description}</Text>
+            </View>
+            <View style={[styles.radio, active && styles.radioOn]} />
+          </Pressable>
+        );
+      })}
       {error && <Text style={styles.error}>{error}</Text>}
-      <Button label="일기 만들기 ✨" onPress={generate} style={{ marginTop: spacing.lg }} />
+      <Button label="일기 만들기" variant="gradient" onPress={generate} style={{ marginTop: spacing.lg }} />
     </ScrollView>
   );
 }

@@ -1,9 +1,11 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
 import { ChatRepository } from '@/data/repositories/ChatRepository';
-import { colors, radius, shadow, spacing, typography } from '@/theme/tokens';
+import { colors, gradients, radius, spacing, typography } from '@/theme/tokens';
 
 export default function ProfileScreen() {
   const [diaryCount, setDiaryCount] = useState(0);
@@ -18,10 +20,15 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
-      <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={{ fontSize: 36 }}>🌷</Text>
-        </View>
+      <View style={styles.head}>
+        <LinearGradient
+          colors={gradients.brand}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.avatar}
+        >
+          <Ionicons name="person" size={34} color={colors.onPrimary} />
+        </LinearGradient>
         <Text style={styles.name}>나의 마음일기</Text>
         <View style={styles.stats}>
           <Stat value={diaryCount} label="일기" />
@@ -31,11 +38,11 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.menu}>
-        <MenuRow icon="💬" label="페르소나 살펴보기" onPress={() => router.push('/settings/personas')} />
-        <MenuRow icon="⚙️" label="설정" onPress={() => router.push('/settings')} />
+        <MenuRow icon="people-outline" label="페르소나 살펴보기" onPress={() => router.push('/settings/personas')} />
+        <MenuRow icon="settings-outline" label="설정" onPress={() => router.push('/settings')} last />
       </View>
 
-      <Text style={styles.soon}>👥 소셜 기능(팔로우·피드)은 곧 추가될 예정이에요.</Text>
+      <Text style={styles.soon}>소셜 기능(팔로우·피드)은 곧 추가될 예정이에요.</Text>
     </ScrollView>
   );
 }
@@ -52,22 +59,19 @@ function Stat({ value, label }: { value: number; label: string }) {
 function MenuRow({
   icon,
   label,
-  value,
-  valueColor,
   onPress,
+  last,
 }: {
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  value?: string;
-  valueColor?: string;
   onPress: () => void;
+  last?: boolean;
 }) {
   return (
-    <Pressable style={styles.menuRow} onPress={onPress}>
-      <Text style={styles.menuIcon}>{icon}</Text>
+    <Pressable style={[styles.menuRow, last && { borderBottomWidth: 0 }]} onPress={onPress}>
+      <Ionicons name={icon} size={20} color={colors.text} />
       <Text style={styles.menuLabel}>{label}</Text>
-      {value ? <Text style={[styles.menuValue, valueColor ? { color: valueColor } : null]}>{value}</Text> : null}
-      <Text style={styles.chevron}>›</Text>
+      <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
     </Pressable>
   );
 }
@@ -75,28 +79,27 @@ function MenuRow({
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg },
-  profileCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    ...shadow.card,
-  },
+  head: { alignItems: 'center', paddingVertical: spacing.xl },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primarySoft,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   name: { ...typography.heading, marginTop: spacing.md },
   stats: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, gap: spacing.xl },
   stat: { alignItems: 'center' },
-  statValue: { ...typography.title, fontSize: 22, color: colors.primary },
-  statLabel: { ...typography.caption },
-  divider: { width: 1, height: 32, backgroundColor: colors.border },
-  menu: { marginTop: spacing.xl, backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden' },
+  statValue: { ...typography.title, fontSize: 22 },
+  statLabel: { ...typography.caption, marginTop: 2 },
+  divider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: colors.borderStrong },
+  menu: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -106,9 +109,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  menuIcon: { fontSize: 20 },
   menuLabel: { ...typography.body, flex: 1 },
-  menuValue: { ...typography.caption, fontWeight: '700' },
-  chevron: { fontSize: 22, color: colors.textFaint },
   soon: { ...typography.caption, textAlign: 'center', marginTop: spacing.xl },
 });

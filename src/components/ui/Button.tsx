@@ -8,12 +8,13 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, gradients, radius, spacing } from '@/theme/tokens';
 
 interface Props {
   label: string;
   onPress?: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'gradient' | 'secondary' | 'ghost';
   disabled?: boolean;
   loading?: boolean;
   icon?: React.ReactNode;
@@ -29,15 +30,60 @@ export function Button({
   icon,
   style,
 }: Props) {
-  const isPrimary = variant === 'primary';
+  const isGradient = variant === 'gradient';
+  const dark = variant === 'primary';
   const isGhost = variant === 'ghost';
+
+  const inner = loading ? (
+    <ActivityIndicator color={dark || isGradient ? colors.onPrimary : colors.text} />
+  ) : (
+    <View style={styles.row}>
+      {icon}
+      <Text
+        style={[
+          styles.label,
+          (dark || isGradient) && { color: colors.onPrimary },
+          variant === 'secondary' && { color: colors.text },
+          isGhost && { color: colors.textMuted },
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+
+  if (isGradient) {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled || loading}
+        style={({ pressed }) => [
+          styles.base,
+          (disabled || loading) && styles.disabled,
+          pressed && { opacity: 0.9 },
+          style,
+        ]}
+      >
+        <LinearGradient
+          colors={gradients.brand}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fill}
+        >
+          {inner}
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.base,
-        isPrimary && styles.primary,
+        styles.pad,
+        dark && styles.primary,
         variant === 'secondary' && styles.secondary,
         isGhost && styles.ghost,
         (disabled || loading) && styles.disabled,
@@ -45,40 +91,25 @@ export function Button({
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.onPrimary : colors.primary} />
-      ) : (
-        <View style={styles.row}>
-          {icon}
-          <Text
-            style={[
-              styles.label,
-              isPrimary ? styles.labelPrimary : styles.labelSecondary,
-              isGhost && { color: colors.textMuted },
-            ]}
-          >
-            {label}
-          </Text>
-        </View>
-      )}
+      {inner}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    height: 52,
+    height: 54,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
+    overflow: 'hidden',
   },
+  fill: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  pad: { paddingHorizontal: spacing.xl },
   primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.primarySoft },
+  secondary: { backgroundColor: colors.surfaceAlt },
   ghost: { backgroundColor: 'transparent' },
-  disabled: { opacity: 0.45 },
+  disabled: { opacity: 0.4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  label: { fontSize: 16, fontWeight: '700' },
-  labelPrimary: { color: colors.onPrimary },
-  labelSecondary: { color: colors.primary },
+  label: { fontSize: 16, fontWeight: '700', color: colors.onPrimary },
 });

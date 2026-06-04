@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { ChatRepository } from '@/data/repositories/ChatRepository';
 import { ChatSession } from '@/types';
 import { getPersona } from '@/config/personas';
@@ -45,17 +46,19 @@ export default function ChatScreen() {
   };
 
   const canMakeDiary = messages.filter((m) => m.role === 'user').length >= 1;
+  const canSend = !!input.trim() && !sending;
 
   return (
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <Stack.Screen
         options={{
           headerShown: true,
           title: persona?.displayName ?? '채팅',
+          headerBackButtonDisplayMode: 'minimal',
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
           headerRight: () =>
             canMakeDiary ? (
               <Pressable
@@ -81,19 +84,18 @@ export default function ChatScreen() {
       <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <TextInput
           style={styles.input}
-          placeholder="메시지를 입력하세요…"
+          placeholder="메시지 보내기"
           placeholderTextColor={colors.textFaint}
           value={input}
           onChangeText={setInput}
           multiline
-          onSubmitEditing={onSend}
         />
         <Pressable
-          style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, !canSend && styles.sendBtnOff]}
           onPress={onSend}
-          disabled={!input.trim() || sending}
+          disabled={!canSend}
         >
-          <Text style={styles.sendIcon}>↑</Text>
+          <Ionicons name="arrow-up" size={20} color={canSend ? colors.onPrimary : colors.textFaint} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -106,7 +108,7 @@ const styles = StyleSheet.create({
   diaryBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: radius.pill,
   },
   diaryBtnText: { color: colors.onPrimary, fontWeight: '700', fontSize: 13 },
@@ -122,7 +124,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
@@ -131,7 +133,7 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     minHeight: 44,
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
@@ -146,6 +148,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: colors.primarySoft },
-  sendIcon: { color: colors.onPrimary, fontSize: 22, fontWeight: '800' },
+  sendBtnOff: { backgroundColor: colors.surfaceAlt },
 });
