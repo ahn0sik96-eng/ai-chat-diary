@@ -1,0 +1,8 @@
+# Supabase 로컬/배포 설정. `supabase link --project-ref <ref>` 후 사용하세요.
+project_id = "ai-chat-diary"
+
+[functions.chat]
+verify_jwt = true
+
+[functions.summarize]
+verify_jwt = true

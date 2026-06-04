@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "무디 (Moody)",
+    "slug": "ai-chat-diary",
+    "version": "1.0.0",
+    "scheme": "moody",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0B14",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.moody.aichatdiary"
+    },
+    "android": {
+      "package": "com.moody.aichatdiary",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0B14",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
