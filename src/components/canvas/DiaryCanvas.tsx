@@ -1,7 +1,7 @@
 import React, { forwardRef, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { CANVAS_REF, useDecorationStore } from '@/state/decorationStore';
-import { colors, radius } from '@/theme/tokens';
+import { colors } from '@/theme/tokens';
 import { DraggableElement } from './DraggableElement';
 
 interface Props {
@@ -64,8 +64,9 @@ export const DiaryCanvas = forwardRef<View, Props>(function DiaryCanvas(
 });
 
 const styles = StyleSheet.create({
+  // Square corners so the captured cover image is a clean rectangle; the feed
+  // card / display wrappers apply rounding themselves.
   canvas: {
-    borderRadius: radius.lg,
     overflow: 'hidden',
   },
 });
