@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -36,6 +35,19 @@ export default function CalendarScreen() {
   const listRef = useRef<FlatList<Month>>(null);
   const [byDate, setByDate] = useState<Record<string, Diary[]>>({});
   const [eventsByDate, setEventsByDate] = useState<Record<string, CalendarEvent[]>>({});
+  const todayKey = useMemo(() => {
+    const t = new Date();
+    return dateKey(t.getFullYear(), t.getMonth(), t.getDate());
+  }, []);
+  const [selectedKey, setSelectedKey] = useState(todayKey);
+
+  const reloadEvents = useCallback(() => {
+    EventRepository.list().then((list) => {
+      const map: Record<string, CalendarEvent[]> = {};
+      for (const e of list) (map[e.date] ||= []).push(e);
+      setEventsByDate(map);
+    });
+  }, []);
 
   const months = useMemo<Month[]>(() => {
     const now = new Date();
@@ -60,12 +72,8 @@ export default function CalendarScreen() {
         }
         setByDate(map);
       });
-      EventRepository.list().then((list) => {
-        const map: Record<string, CalendarEvent[]> = {};
-        for (const e of list) (map[e.date] ||= []).push(e);
-        setEventsByDate(map);
-      });
-    }, []),
+      reloadEvents();
+    }, [reloadEvents]),
   );
 
   const active = months[activeIndex] ?? months[initialIndex];
@@ -109,6 +117,7 @@ export default function CalendarScreen() {
 
       <FlatList
         ref={listRef}
+        style={styles.pager}
         data={months}
         horizontal
         pagingEnabled
@@ -129,8 +138,20 @@ export default function CalendarScreen() {
             month={item.month}
             byDate={byDate}
             eventsByDate={eventsByDate}
+            selectedKey={selectedKey}
+            onSelectDay={setSelectedKey}
           />
         )}
+      />
+
+      <DayPanel
+        dateKey={selectedKey}
+        events={eventsByDate[selectedKey] ?? []}
+        diaries={byDate[selectedKey] ?? []}
+        onDeleteEvent={async (id) => {
+          await EventRepository.delete(id);
+          reloadEvents();
+        }}
       />
 
       <Pressable
@@ -143,18 +164,85 @@ export default function CalendarScreen() {
   );
 }
 
+const WEEKDAY_FULL = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+
+function DayPanel({
+  dateKey: key,
+  events,
+  diaries,
+  onDeleteEvent,
+}: {
+  dateKey: string;
+  events: CalendarEvent[];
+  diaries: Diary[];
+  onDeleteEvent: (id: string) => void;
+}) {
+  const [y, m, d] = key.split('-').map(Number);
+  const weekday = WEEKDAY_FULL[new Date(y, m - 1, d).getDay()];
+  const empty = events.length === 0 && diaries.length === 0;
+
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.panelDate}>
+        {m}월 {d}일 <Text style={styles.panelWeekday}>{weekday}</Text>
+      </Text>
+
+      {empty ? (
+        <Pressable style={styles.panelEmpty} onPress={() => router.push('/chat')}>
+          <Text style={styles.panelEmptyText}>이 날의 기록이 없어요</Text>
+          <View style={styles.panelChat}>
+            <Ionicons name="chatbubble-ellipses" size={15} color={colors.onPrimary} />
+            <Text style={styles.panelChatText}>대화하기</Text>
+          </View>
+        </Pressable>
+      ) : (
+        <View style={{ gap: spacing.sm }}>
+          {events.map((e) => (
+            <View key={e.id} style={styles.eventRow}>
+              <View style={[styles.dot, styles.eventDotBig]} />
+              <Text style={styles.eventTitle} numberOfLines={1}>
+                {e.title}
+              </Text>
+              <Pressable onPress={() => onDeleteEvent(e.id)} hitSlop={8}>
+                <Ionicons name="close" size={18} color={colors.textFaint} />
+              </Pressable>
+            </View>
+          ))}
+          {diaries.map((diary) => (
+            <Pressable
+              key={diary.id}
+              style={styles.eventRow}
+              onPress={() => router.push(`/diary/${diary.id}`)}
+            >
+              <Ionicons name="book" size={15} color={colors.accent} />
+              <Text style={styles.eventTitle} numberOfLines={1}>
+                {diary.title}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function MonthGrid({
   width,
   year,
   month,
   byDate,
   eventsByDate,
+  selectedKey,
+  onSelectDay,
 }: {
   width: number;
   year: number;
   month: number;
   byDate: Record<string, Diary[]>;
   eventsByDate: Record<string, CalendarEvent[]>;
+  selectedKey: string;
+  onSelectDay: (key: string) => void;
 }) {
   const cells = useMemo(() => {
     const firstWeekday = new Date(year, month, 1).getDay();
@@ -180,21 +268,16 @@ function MonthGrid({
         const cover = diaries?.find((x) => x.coverImageUri)?.coverImageUri;
         const hasDiary = !!diaries?.length;
         const hasEvent = !!events?.length;
-        const onPress = () => {
-          if (hasDiary) {
-            router.push(`/diary/${diaries![0].id}`);
-          } else if (hasEvent) {
-            Alert.alert(
-              `${month + 1}월 ${d}일 일정`,
-              events!.map((e) => `· ${e.title}`).join('\n'),
-            );
-          } else {
-            router.push('/chat');
-          }
-        };
+        const selected = key === selectedKey;
         return (
-          <Pressable key={key} style={gridStyles.cell} onPress={onPress}>
-            <View style={[gridStyles.day, isToday(d) && gridStyles.today]}>
+          <Pressable key={key} style={gridStyles.cell} onPress={() => onSelectDay(key)}>
+            <View
+              style={[
+                gridStyles.day,
+                selected && !isToday(d) && gridStyles.selected,
+                isToday(d) && gridStyles.today,
+              ]}
+            >
               {cover && <Image source={{ uri: cover }} style={gridStyles.cover} contentFit="cover" />}
               <Text
                 style={[
@@ -245,6 +328,40 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   weekday: { flex: 1, textAlign: 'center', ...typography.tiny, color: colors.textMuted, fontWeight: '600' },
+  pager: { flexGrow: 0, height: 64 * 6 },
+  panel: {
+    flex: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  panelDate: { ...typography.heading, marginBottom: spacing.md },
+  panelWeekday: { ...typography.caption, color: colors.textMuted, fontWeight: '600' },
+  panelEmpty: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  panelEmptyText: { ...typography.caption },
+  panelChat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+  },
+  panelChatText: { color: colors.onPrimary, fontWeight: '700', fontSize: 13 },
+  eventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  eventTitle: { ...typography.bodyStrong, flex: 1, fontSize: 14 },
+  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.accent },
+  eventDotBig: { backgroundColor: colors.accent2 },
   fab: {
     position: 'absolute',
     right: spacing.lg,
@@ -270,6 +387,7 @@ const gridStyles = StyleSheet.create({
     overflow: 'hidden',
   },
   today: { backgroundColor: colors.primary },
+  selected: { borderWidth: 1.5, borderColor: colors.primary },
   cover: { ...StyleSheet.absoluteFillObject },
   num: { ...typography.body, fontSize: 15, color: colors.text },
   todayNum: { color: colors.onPrimary, fontWeight: '700' },
