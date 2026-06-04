@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
+import { captureViewAsPng } from '@/utils/capture';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
 import { Diary, TextElement } from '@/types';
 import { CANVAS_REF, useDecorationStore } from '@/state/decorationStore';
@@ -68,13 +68,9 @@ export default function DecorateScreen() {
         background,
         elements,
       });
-      // Capture a cover image for the feed.
-      try {
-        const uri = await captureRef(canvasRef, { format: 'png', quality: 1 });
-        await DiaryRepository.setCoverImage(diary.id, uri);
-      } catch {
-        // capture is best-effort; layout is already saved.
-      }
+      // Capture a cover image for the feed (best-effort; unavailable in Expo Go).
+      const uri = await captureViewAsPng(canvasRef);
+      if (uri) await DiaryRepository.setCoverImage(diary.id, uri);
       router.replace(`/diary/${diary.id}`);
     } finally {
       setSaving(false);
@@ -83,12 +79,16 @@ export default function DecorateScreen() {
 
   const saveToGallery = async () => {
     try {
+      const uri = await captureViewAsPng(canvasRef);
+      if (!uri) {
+        Alert.alert('안내', '이미지 저장은 정식 빌드에서 지원돼요. (Expo Go에서는 미지원)');
+        return;
+      }
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('권한 필요', '갤러리에 저장하려면 사진 권한이 필요해요.');
         return;
       }
-      const uri = await captureRef(canvasRef, { format: 'png', quality: 1 });
       await MediaLibrary.saveToLibraryAsync(uri);
       Alert.alert('저장 완료', '갤러리에 다이어리를 저장했어요 🌷');
     } catch {
