@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
 import { Diary } from '@/types';
 import { DIARY_STYLES } from '@/config/diaryStyles';
@@ -47,8 +48,13 @@ export default function DiaryView() {
         options={{
           title: diary.title,
           headerRight: () => (
-            <Pressable onPress={() => router.push(`/diary/decorate/${diary.id}`)} hitSlop={10}>
-              <Text style={styles.editBtn}>꾸미기</Text>
+            <Pressable
+              onPress={() => router.push(`/diary/decorate/${diary.id}`)}
+              style={styles.editBtn}
+              hitSlop={8}
+            >
+              <Ionicons name="color-wand-outline" size={15} color={colors.onPrimary} />
+              <Text style={styles.editBtnText}>꾸미기</Text>
             </Pressable>
           ),
         }}
@@ -78,7 +84,16 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-  editBtn: { ...typography.bodyStrong, color: colors.primary },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+  },
+  editBtnText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
   styleTag: { ...typography.caption, color: colors.primary, fontWeight: '700' },
   mood: { ...typography.caption, color: colors.textMuted },
