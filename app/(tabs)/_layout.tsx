@@ -3,10 +3,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/tokens';
 
-// Open the app on the Calendar tab.
-export const unstable_settings = {
-  initialRouteName: 'calendar',
-};
+const HAIRLINE = 0.5;
 
 export default function TabsLayout() {
   return (
@@ -21,14 +18,15 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          borderTopWidth: StyleSheet_hairline,
+          borderTopWidth: HAIRLINE,
           height: 64,
           paddingTop: 6,
         },
       }}
     >
+      {/* Feed (grid) */}
       <Tabs.Screen
-        name="index"
+        name="feed"
         options={{
           headerTitle: '마음일기',
           tabBarIcon: ({ color, focused }) => (
@@ -36,8 +34,9 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Calendar — this is the index route ("/"), so the app opens here */}
       <Tabs.Screen
-        name="calendar"
+        name="index"
         options={{
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
@@ -61,5 +60,3 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
-
-const StyleSheet_hairline = 0.5;
