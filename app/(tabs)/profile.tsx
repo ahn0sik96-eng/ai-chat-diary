@@ -3,13 +3,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { DiaryRepository } from '@/data/repositories/DiaryRepository';
 import { ChatRepository } from '@/data/repositories/ChatRepository';
-import { useSettingsStore } from '@/state/settingsStore';
 import { colors, radius, shadow, spacing, typography } from '@/theme/tokens';
 
 export default function ProfileScreen() {
   const [diaryCount, setDiaryCount] = useState(0);
   const [chatCount, setChatCount] = useState(0);
-  const hasKey = useSettingsStore((s) => s.hasKey);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,13 +31,6 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.menu}>
-        <MenuRow
-          icon="🔑"
-          label="Grok API 키"
-          value={hasKey ? '연결됨' : '연결 안 됨'}
-          valueColor={hasKey ? colors.success : colors.warning}
-          onPress={() => router.push('/settings/api-key')}
-        />
         <MenuRow icon="💬" label="페르소나 살펴보기" onPress={() => router.push('/settings/personas')} />
         <MenuRow icon="⚙️" label="설정" onPress={() => router.push('/settings')} />
       </View>

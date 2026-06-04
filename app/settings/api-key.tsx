@@ -45,16 +45,17 @@ export default function ApiKeyScreen() {
         multiline
       />
       <Text style={styles.help}>
-        키는 이 기기에만 안전하게 저장돼요(보안 저장소). 키가 없어도 앱을 둘러볼 수
-        있고, 채팅·요약은 예시 응답으로 동작해요.
+        개발자 전용 옵션이에요. 일반 사용자는 키를 넣을 필요가 없어요 — 실제 서비스는
+        서버(프록시)가 키를 안전하게 보관하고 AI를 호출합니다. 이 화면은 서버 없이
+        로컬에서 바로 테스트하고 싶을 때만 쓰세요.
       </Text>
 
       <View style={styles.notice}>
-        <Text style={styles.noticeTitle}>⚠️ 보안 안내</Text>
+        <Text style={styles.noticeTitle}>ℹ️ 참고</Text>
         <Text style={styles.noticeText}>
-          지금은 키가 앱(기기)에 저장됩니다. 개인용/테스트 용도로는 괜찮지만, 앱을 정식
-          출시하기 전에는 반드시 서버(예: Supabase Edge Function)를 통해 키를 숨기도록
-          바꿔야 해요.
+          여기에 키를 넣으면 이 기기에서 xAI를 직접 호출합니다(보안 저장소에 저장).
+          비워두면 앱은 백엔드 프록시를 사용하고, 프록시도 없으면 예시(mock) 응답으로
+          동작해요.
         </Text>
       </View>
 

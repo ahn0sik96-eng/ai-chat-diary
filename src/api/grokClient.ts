@@ -1,5 +1,6 @@
 import { fetch as expoFetch } from 'expo/fetch';
 import { GROK } from '@/config/grok.config';
+import { PROXY_APP_KEY, PROXY_URL, hasProxy } from '@/config/proxy.config';
 import { apiKeyStore } from './apiKey';
 import {
   AuthError,
@@ -25,15 +26,45 @@ export interface ChatOptions {
   signal?: AbortSignal;
 }
 
-/** Whether a Grok API key is configured on this device. */
-export async function hasApiKey(): Promise<boolean> {
+interface Endpoint {
+  url: string;
+  headers: Record<string, string>;
+}
+
+/**
+ * Whether the app can reach Grok at all:
+ *  - production: a backend proxy URL is configured (key lives on the server), OR
+ *  - dev: a local key was entered in the hidden developer screen.
+ * When false, callers fall back to mock responses.
+ */
+export async function hasBackend(): Promise<boolean> {
+  if (hasProxy()) return true;
   return !!(await apiKeyStore.get());
 }
 
-async function requireKey(): Promise<string> {
-  const key = await apiKeyStore.get();
-  if (!key) throw new MissingApiKeyError();
-  return key;
+/**
+ * Resolve where to send requests. Prefer the backend proxy (no key on device);
+ * otherwise fall back to calling xAI directly with a developer key.
+ */
+async function resolveEndpoint(): Promise<Endpoint> {
+  if (hasProxy()) {
+    return {
+      url: PROXY_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-app-key': PROXY_APP_KEY,
+      },
+    };
+  }
+  const devKey = await apiKeyStore.get();
+  if (!devKey) throw new MissingApiKeyError();
+  return {
+    url: `${GROK.baseUrl}/chat/completions`,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${devKey}`,
+    },
+  };
 }
 
 function buildBody(opts: ChatOptions, stream: boolean) {
@@ -56,15 +87,12 @@ function throwForStatus(status: number): never {
 
 /** Non-streaming chat completion. Returns the full assistant text. */
 export async function grokChat(opts: ChatOptions): Promise<string> {
-  const key = await requireKey();
+  const endpoint = await resolveEndpoint();
   let res: Response;
   try {
-    res = (await expoFetch(`${GROK.baseUrl}/chat/completions`, {
+    res = (await expoFetch(endpoint.url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-      },
+      headers: endpoint.headers,
       body: JSON.stringify(buildBody(opts, false)),
       signal: opts.signal,
     })) as unknown as Response;
@@ -86,15 +114,12 @@ export async function grokChatStream(
   opts: ChatOptions,
   onDelta: (chunk: string, full: string) => void,
 ): Promise<string> {
-  const key = await requireKey();
+  const endpoint = await resolveEndpoint();
   let res: Awaited<ReturnType<typeof expoFetch>>;
   try {
-    res = await expoFetch(`${GROK.baseUrl}/chat/completions`, {
+    res = await expoFetch(endpoint.url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-      },
+      headers: endpoint.headers,
       body: JSON.stringify(buildBody(opts, true)),
       signal: opts.signal,
     });
@@ -117,7 +142,7 @@ export async function grokChatStream(
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 
-    // SSE frames are separated by double newlines.
+    // SSE frames are separated by newlines.
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
     for (const raw of lines) {

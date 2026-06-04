@@ -2,7 +2,7 @@ import { GROK } from '@/config/grok.config';
 import { buildSummaryPrompt } from '@/config/diaryStyles';
 import { ChatMessage, DiarySentence, DiaryStyle } from '@/types';
 import { uid } from '@/utils/id';
-import { grokChat, GrokMessage, hasApiKey } from './grokClient';
+import { grokChat, GrokMessage, hasBackend } from './grokClient';
 import { mockSummaryJson } from './mock/mockGrok';
 
 export interface SummaryResult {
@@ -23,7 +23,7 @@ export async function summarizeConversation(
     .join('\n');
 
   let rawResponse: string;
-  if (!(await hasApiKey())) {
+  if (!(await hasBackend())) {
     rawResponse = await mockSummaryJson(style);
   } else {
     const messages: GrokMessage[] = [

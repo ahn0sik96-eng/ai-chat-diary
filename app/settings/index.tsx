@@ -25,8 +25,12 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
       <View style={styles.group}>
-        <Row label="Grok API 키" value={hasKey ? '연결됨' : '미연결'} onPress={() => router.push('/settings/api-key')} />
         <Row label="페르소나" onPress={() => router.push('/settings/personas')} />
+        <Row
+          label="개발자: 직접 키 입력"
+          value={hasKey ? '사용 중' : ''}
+          onPress={() => router.push('/settings/api-key')}
+        />
       </View>
 
       <View style={styles.group}>

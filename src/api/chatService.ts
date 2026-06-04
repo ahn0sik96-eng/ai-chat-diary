@@ -1,7 +1,7 @@
 import { GROK } from '@/config/grok.config';
 import { getPersona } from '@/config/personas';
 import { ChatMessage, PersonaId } from '@/types';
-import { grokChatStream, GrokMessage, hasApiKey } from './grokClient';
+import { grokChatStream, GrokMessage, hasBackend } from './grokClient';
 import { mockChatStream } from './mock/mockGrok';
 
 /**
@@ -16,7 +16,7 @@ export async function streamPersonaReply(params: {
 }): Promise<string> {
   const { personaId, history, onDelta, signal } = params;
 
-  if (!(await hasApiKey())) {
+  if (!(await hasBackend())) {
     return mockChatStream(personaId, onDelta);
   }
 
