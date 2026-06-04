@@ -32,15 +32,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="chat/index"
+        name="calendar"
         options={{
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'chatbubble' : 'chatbubble-outline'}
-              size={25}
-              color={color}
-            />
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={25} color={color} />
           ),
         }}
       />

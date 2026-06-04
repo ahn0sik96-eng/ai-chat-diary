@@ -124,13 +124,18 @@ export default function DecorateScreen() {
         </Pressable>
       </View>
 
-      {/* Canvas area */}
-      <ScrollView
-        contentContainerStyle={styles.canvasArea}
-        onLayout={(e) => setCanvasW(e.nativeEvent.layout.width - spacing.lg * 2)}
+      {/* Canvas area — size the canvas to fill the available space (contain) */}
+      <View
+        style={styles.canvasArea}
+        onLayout={(e) => {
+          const { width: w, height: h } = e.nativeEvent.layout;
+          const pad = spacing.md * 2;
+          const ratio = CANVAS_REF.height / CANVAS_REF.width;
+          setCanvasW(Math.floor(Math.min(w - pad, (h - pad) / ratio)));
+        }}
       >
         {canvasW > 0 && <DiaryCanvas ref={canvasRef} width={canvasW} editable />}
-      </ScrollView>
+      </View>
 
       {/* Contextual toolbar for the selected element */}
       {selected && (
@@ -291,10 +296,10 @@ const styles = StyleSheet.create({
   headerSave: { color: colors.primary },
   headerTitle: { ...typography.bodyStrong, flex: 1, textAlign: 'center', marginHorizontal: spacing.md },
   canvasArea: {
-    flexGrow: 1,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.lg,
+    padding: spacing.md,
   },
   contextBar: {
     backgroundColor: colors.surface,

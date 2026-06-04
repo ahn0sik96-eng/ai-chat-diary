@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatRepository } from '@/data/repositories/ChatRepository';
 import { ChatSession } from '@/types';
@@ -25,6 +26,7 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList>(null);
   const [input, setInput] = useState('');
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
 
   useEffect(() => {
     if (sessionId) ChatRepository.getSession(sessionId).then(setSession);
@@ -51,7 +53,8 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={headerHeight}
     >
       <Stack.Screen
         options={{
@@ -104,7 +107,7 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
-  messages: { padding: spacing.lg, paddingBottom: spacing.md },
+  messages: { padding: spacing.lg, paddingBottom: spacing.md, flexGrow: 1, justifyContent: 'flex-end' },
   diaryBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,

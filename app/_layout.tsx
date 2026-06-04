@@ -29,6 +29,7 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="chat/index" options={{ title: '채팅' }} />
           <Stack.Screen name="session/[sessionId]" options={{ headerShown: false }} />
           <Stack.Screen
             name="diary/summarize/[sessionId]"

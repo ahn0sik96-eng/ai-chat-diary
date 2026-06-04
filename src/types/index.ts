@@ -11,6 +11,7 @@ export interface Persona {
   id: PersonaId;
   displayName: string;
   emoji: string;
+  icon: string; // Ionicons name shown in the avatar
   tagline: string; // short one-liner shown in the picker
   accent: string; // accent color for the persona
   /** System prompt — the heart of the "feels human" chat. Edit freely. */

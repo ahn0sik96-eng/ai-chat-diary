@@ -14,7 +14,7 @@ export default function PersonasScreen() {
       {PERSONAS.map((p) => (
         <View key={p.id} style={styles.card}>
           <View style={styles.header}>
-            <PersonaAvatar name={p.displayName} color={p.accent} size={48} />
+            <PersonaAvatar icon={p.icon} size={48} />
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{p.displayName}</Text>
               <Text style={styles.tag}>{p.tagline}</Text>
