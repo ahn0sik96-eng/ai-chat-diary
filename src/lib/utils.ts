@@ -1,0 +1,46 @@
+export function uid(prefix = "id"): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 7)}`;
+}
+
+/** Current epoch millis. Wrapped so callers stay render-pure. */
+export function now(): number {
+  return Date.now();
+}
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+export function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function formatLongDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEKDAYS[d.getDay()]}요일`;
+}
+
+export function formatShortDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return `${d.getMonth() + 1}.${d.getDate()}`;
+}
+
+export function relativeDay(iso: string): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(iso + "T00:00:00");
+  const diff = Math.round((today.getTime() - d.getTime()) / 86400000);
+  if (diff === 0) return "오늘";
+  if (diff === 1) return "어제";
+  if (diff > 1 && diff < 7) return `${diff}일 전`;
+  return formatLongDate(iso);
+}
+
+export function timeOfDayGreeting(d = new Date()): string {
+  const h = d.getHours();
+  if (h < 5) return "고요한 새벽이에요";
+  if (h < 12) return "좋은 아침이에요";
+  if (h < 17) return "나른한 오후예요";
+  if (h < 21) return "하루를 마무리할 시간이에요";
+  return "포근한 밤이에요";
+}
