@@ -8,6 +8,11 @@ export const GROK = {
   /** Higher temperature => less robotic, more human chatter. */
   chatTemperature: 0.95,
   summaryTemperature: 0.7,
+  /**
+   * grok-4.3 is a reasoning model. For casual chat we want fast, snappy replies,
+   * so use low reasoning effort. Summaries keep the default (better quality).
+   */
+  chatReasoningEffort: 'low' as 'low' | 'high',
   /** Keep only the last N turns of history sent to the API (token budget). */
   maxHistoryMessages: 24,
   /** Request timeout in ms. */

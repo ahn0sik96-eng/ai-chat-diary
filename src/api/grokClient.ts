@@ -20,6 +20,8 @@ export interface ChatOptions {
   temperature?: number;
   /** Force a JSON object response (used for diary summarization). */
   jsonMode?: boolean;
+  /** Reasoning effort for reasoning models (lower = faster replies). */
+  reasoningEffort?: 'low' | 'high';
   signal?: AbortSignal;
 }
 
@@ -42,6 +44,7 @@ function buildBody(opts: ChatOptions, stream: boolean) {
     stream,
   };
   if (opts.jsonMode) body.response_format = { type: 'json_object' };
+  if (opts.reasoningEffort) body.reasoning_effort = opts.reasoningEffort;
   return body;
 }
 

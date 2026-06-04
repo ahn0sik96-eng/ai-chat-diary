@@ -31,7 +31,12 @@ export async function streamPersonaReply(params: {
   ];
 
   return grokChatStream(
-    { messages, temperature: GROK.chatTemperature, signal },
+    {
+      messages,
+      temperature: GROK.chatTemperature,
+      reasoningEffort: GROK.chatReasoningEffort,
+      signal,
+    },
     onDelta,
   );
 }
