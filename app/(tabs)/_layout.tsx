@@ -3,6 +3,11 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/tokens';
 
+// Open the app on the Calendar tab.
+export const unstable_settings = {
+  initialRouteName: 'calendar',
+};
+
 export default function TabsLayout() {
   return (
     <Tabs
@@ -27,7 +32,7 @@ export default function TabsLayout() {
         options={{
           headerTitle: '마음일기',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
+            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={23} color={color} />
           ),
         }}
       />
