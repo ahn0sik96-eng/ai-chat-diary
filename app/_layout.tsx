@@ -5,14 +5,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSettingsStore } from '@/state/settingsStore';
+import { useCustomStickerStore } from '@/state/customStickerStore';
 import { colors } from '@/theme/tokens';
 
 export default function RootLayout() {
   const refreshKey = useSettingsStore((s) => s.refreshKey);
+  const loadStickers = useCustomStickerStore((s) => s.load);
 
   useEffect(() => {
     refreshKey();
-  }, [refreshKey]);
+    loadStickers();
+  }, [refreshKey, loadStickers]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

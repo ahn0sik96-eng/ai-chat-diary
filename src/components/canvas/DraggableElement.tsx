@@ -9,6 +9,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { CanvasElement } from '@/types';
 import { getSticker } from '@/assets/stickers/manifest';
+import { CUSTOM_PREFIX, useCustomStickerStore } from '@/state/customStickerStore';
 import { colors } from '@/theme/tokens';
 
 const HANDLE = 32;
@@ -302,6 +303,22 @@ function DraggableElementBase({
 }
 
 function StickerView({ assetId, displayScale }: { assetId: string; displayScale: number }) {
+  const isCustom = assetId.startsWith(CUSTOM_PREFIX);
+  const customUri = useCustomStickerStore((s) =>
+    isCustom ? s.uriById[assetId.slice(CUSTOM_PREFIX.length)] : undefined,
+  );
+
+  if (isCustom) {
+    if (!customUri) return null;
+    return (
+      <Animated.Image
+        source={{ uri: customUri }}
+        style={{ width: 170 * displayScale, height: 170 * displayScale }}
+        resizeMode="contain"
+      />
+    );
+  }
+
   const sticker = getSticker(assetId);
   if (!sticker) return null;
   if (sticker.type === 'emoji') {

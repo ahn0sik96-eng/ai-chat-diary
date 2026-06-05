@@ -80,6 +80,12 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
       createdAt   INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_events_date ON calendar_events (date);
+
+    CREATE TABLE IF NOT EXISTS custom_stickers (
+      id          TEXT PRIMARY KEY NOT NULL,
+      uri         TEXT NOT NULL,
+      createdAt   INTEGER NOT NULL
+    );
   `);
 }
 
@@ -87,6 +93,7 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
 export async function resetDb(): Promise<void> {
   const db = await getDb();
   await db.execAsync(`
+    DROP TABLE IF EXISTS custom_stickers;
     DROP TABLE IF EXISTS calendar_events;
     DROP TABLE IF EXISTS diary_layouts;
     DROP TABLE IF EXISTS diaries;

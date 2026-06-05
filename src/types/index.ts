@@ -126,3 +126,10 @@ export interface CalendarEvent {
   sessionId?: string;
   createdAt: number;
 }
+
+/** A user-imported sticker image (from the photo library). */
+export interface CustomSticker {
+  id: string;
+  uri: string;
+  createdAt: number;
+}
