@@ -26,6 +26,7 @@ export const DiaryCanvas = forwardRef<View, Props>(function DiaryCanvas(
   const setEditing = useDecorationStore((s) => s.setEditing);
   const updateTransform = useDecorationStore((s) => s.updateTransform);
   const updateTextContent = useDecorationStore((s) => s.updateTextContent);
+  const remove = useDecorationStore((s) => s.remove);
 
   const height = width * (CANVAS_REF.height / CANVAS_REF.width);
   const displayScale = width / CANVAS_REF.width;
@@ -66,6 +67,7 @@ export const DiaryCanvas = forwardRef<View, Props>(function DiaryCanvas(
           onStartEdit={setEditing}
           onCommitText={updateTextContent}
           onEndEdit={() => setEditing(null)}
+          onRemove={remove}
           onCommit={updateTransform}
         />
       ))}

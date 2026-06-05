@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { CanvasElement } from '@/types';
 import { getSticker } from '@/assets/stickers/manifest';
 import { colors } from '@/theme/tokens';
+
+const HANDLE = 32;
 
 interface Props {
   element: CanvasElement;
@@ -21,14 +24,15 @@ interface Props {
   onStartEdit: (id: string) => void;
   onCommitText: (id: string, text: string) => void;
   onEndEdit: () => void;
+  onRemove: (id: string) => void;
   /** Commit final transform (in canvas-ref units) to the store on gesture end. */
   onCommit: (id: string, t: { x: number; y: number; scale: number; rotation: number }) => void;
 }
 
 /**
- * A single canvas element (text block or sticker) that can be dragged, pinch-scaled,
- * and rotated. Gestures drive reanimated shared values for 60fps; the final transform
- * is committed back to the store when the gesture ends.
+ * A canvas element (text or sticker) that can be dragged, pinch-scaled and rotated.
+ * When selected it shows a selection frame with corner handles: delete, edit,
+ * one-finger resize, and rotate. Gestures drive reanimated shared values at 60fps.
  */
 function DraggableElementBase({
   element,
@@ -40,6 +44,7 @@ function DraggableElementBase({
   onStartEdit,
   onCommitText,
   onEndEdit,
+  onRemove,
   onCommit,
 }: Props) {
   const isText = element.type === 'text';
@@ -48,29 +53,21 @@ function DraggableElementBase({
     if (editing && element.type === 'text') setDraft(element.text);
   }, [editing]);
 
-  const startEdit = () => onStartEdit(element.id);
-  const commitText = () => {
-    const t = draft.trim();
-    if (t && element.type === 'text') onCommitText(element.id, t);
-    onEndEdit();
-  };
-  // Center position in SCREEN coordinates.
+  // Center position in SCREEN coordinates + transform.
   const cx = useSharedValue(element.x * displayScale);
   const cy = useSharedValue(element.y * displayScale);
   const scale = useSharedValue(element.scale);
   const rotation = useSharedValue(element.rotation);
 
-  // Measured size of the element (screen px), for center-anchored placement.
+  // Measured (unscaled) size of the content, for frame + handle placement.
   const w = useSharedValue(0);
   const h = useSharedValue(0);
 
-  // Gesture start snapshots.
   const startX = useSharedValue(0);
   const startY = useSharedValue(0);
   const startScale = useSharedValue(1);
   const startRot = useSharedValue(0);
 
-  // Keep shared values in sync if the element/displayScale changes externally.
   useEffect(() => {
     cx.value = element.x * displayScale;
     cy.value = element.y * displayScale;
@@ -78,6 +75,12 @@ function DraggableElementBase({
     rotation.value = element.rotation;
   }, [element.x, element.y, element.scale, element.rotation, displayScale]);
 
+  const startEdit = () => onStartEdit(element.id);
+  const commitText = () => {
+    const t = draft.trim();
+    if (t && element.type === 'text') onCommitText(element.id, t);
+    onEndEdit();
+  };
   const commit = () => {
     onCommit(element.id, {
       x: cx.value / displayScale,
@@ -87,7 +90,6 @@ function DraggableElementBase({
     });
   };
 
-  // While editing text, all manipulation gestures are off so typing works.
   const active = editable && !editing;
 
   const pan = Gesture.Pan()
@@ -110,11 +112,11 @@ function DraggableElementBase({
       runOnJS(onSelect)(element.id);
     })
     .onUpdate((e) => {
-      scale.value = Math.max(0.25, Math.min(6, startScale.value * e.scale));
+      scale.value = Math.max(0.25, Math.min(8, startScale.value * e.scale));
     })
     .onEnd(() => runOnJS(commit)());
 
-  const rotate = Gesture.Rotation()
+  const twoFingerRotate = Gesture.Rotation()
     .enabled(active)
     .onStart(() => {
       startRot.value = rotation.value;
@@ -133,11 +135,33 @@ function DraggableElementBase({
     .enabled(active)
     .onEnd(() => runOnJS(onSelect)(element.id));
 
-  // Double-tap (edit) takes priority over single-tap (select).
   const taps = Gesture.Exclusive(doubleTap, singleTap);
-  const composed = Gesture.Simultaneous(taps, pan, pinch, rotate);
+  const composed = Gesture.Simultaneous(taps, pan, pinch, twoFingerRotate);
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  // One-finger resize via the bottom-right handle.
+  const resize = Gesture.Pan()
+    .onStart(() => {
+      startScale.value = scale.value;
+    })
+    .onUpdate((e) => {
+      const ref = Math.max(60, Math.max(w.value, h.value));
+      let ns = startScale.value + (e.translationX + e.translationY) / ref;
+      ns = ns < 0.25 ? 0.25 : ns > 8 ? 8 : ns;
+      scale.value = ns;
+    })
+    .onEnd(() => runOnJS(commit)());
+
+  // One-finger rotate via the bottom-left handle.
+  const rotateHandle = Gesture.Pan()
+    .onStart(() => {
+      startRot.value = rotation.value;
+    })
+    .onUpdate((e) => {
+      rotation.value = startRot.value + (e.translationX - e.translationY) * 0.01;
+    })
+    .onEnd(() => runOnJS(commit)());
+
+  const contentStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: cx.value - w.value / 2 },
       { translateY: cy.value - h.value / 2 },
@@ -146,10 +170,47 @@ function DraggableElementBase({
     ],
   }));
 
+  const frameStyle = useAnimatedStyle(() => {
+    const fw = w.value * scale.value;
+    const fh = h.value * scale.value;
+    return {
+      width: fw,
+      height: fh,
+      transform: [
+        { translateX: cx.value - fw / 2 },
+        { translateY: cy.value - fh / 2 },
+        { rotateZ: `${rotation.value}rad` },
+      ],
+    };
+  });
+
+  // Corner handle positions (sx, sy in {-1, 1}), rotated around the center.
+  const cornerStyle = (sx: number, sy: number) =>
+    useAnimatedStyle(() => {
+      const hw = (w.value * scale.value) / 2;
+      const hh = (h.value * scale.value) / 2;
+      const lx = sx * hw;
+      const ly = sy * hh;
+      const cos = Math.cos(rotation.value);
+      const sin = Math.sin(rotation.value);
+      const rx = lx * cos - ly * sin;
+      const ry = lx * sin + ly * cos;
+      return {
+        transform: [
+          { translateX: cx.value + rx - HANDLE / 2 },
+          { translateY: cy.value + ry - HANDLE / 2 },
+        ],
+      };
+    });
+
+  const tl = cornerStyle(-1, -1);
+  const tr = cornerStyle(1, -1);
+  const bl = cornerStyle(-1, 1);
+  const br = cornerStyle(1, 1);
+
   const textStyle =
     element.type === 'text'
       ? ({
-          // ~88% of the canvas width so long sentences wrap inside, never clipped
           maxWidth: 880 * displayScale,
           color: element.color,
           fontSize: element.fontSize * displayScale,
@@ -181,22 +242,62 @@ function DraggableElementBase({
       <StickerView assetId={element.assetId} displayScale={displayScale} />
     );
 
+  const showHandles = selected && editable && !editing;
+
   return (
-    <GestureDetector gesture={composed}>
-      <Animated.View
-        onLayout={(e) => {
-          w.value = e.nativeEvent.layout.width;
-          h.value = e.nativeEvent.layout.height;
-        }}
-        style={[
-          styles.wrap,
-          animatedStyle,
-          selected && editable && styles.selected,
-        ]}
-      >
-        {content}
-      </Animated.View>
-    </GestureDetector>
+    <>
+      <GestureDetector gesture={composed}>
+        <Animated.View
+          onLayout={(e) => {
+            w.value = e.nativeEvent.layout.width;
+            h.value = e.nativeEvent.layout.height;
+          }}
+          style={[styles.wrap, contentStyle]}
+        >
+          {content}
+        </Animated.View>
+      </GestureDetector>
+
+      {showHandles && (
+        <>
+          <Animated.View pointerEvents="none" style={[styles.frame, frameStyle]} />
+
+          {/* Delete (top-left) */}
+          <Animated.View style={[styles.handlePos, tl]}>
+            <Pressable style={[styles.handle, styles.danger]} hitSlop={8} onPress={() => onRemove(element.id)}>
+              <Ionicons name="close" size={17} color="#fff" />
+            </Pressable>
+          </Animated.View>
+
+          {/* Edit (top-right) — text only */}
+          {isText && (
+            <Animated.View style={[styles.handlePos, tr]}>
+              <Pressable style={[styles.handle, styles.accent]} hitSlop={8} onPress={startEdit}>
+                <Ionicons name="pencil" size={15} color="#fff" />
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* Rotate (bottom-left) */}
+          <GestureDetector gesture={rotateHandle}>
+            <Animated.View style={[styles.handlePos, bl]}>
+              <Animated.View style={styles.handle}>
+                <Ionicons name="sync" size={16} color={colors.accent2} />
+              </Animated.View>
+            </Animated.View>
+          </GestureDetector>
+
+          {/* Resize (bottom-right) */}
+          <GestureDetector gesture={resize}>
+            <Animated.View style={[styles.handlePos, br]}>
+              <Animated.View style={styles.handle}>
+                <Ionicons name="resize" size={16} color={colors.accent2} />
+              </Animated.View>
+            </Animated.View>
+          </GestureDetector>
+        </>
+      )}
+    </>
   );
 }
 
@@ -222,12 +323,32 @@ const styles = StyleSheet.create({
     top: 0,
     padding: 6,
   },
-  selected: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: 8,
+  frame: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    borderWidth: 1,
+    borderColor: colors.accent2,
     borderStyle: 'dashed',
   },
+  handlePos: { position: 'absolute', left: 0, top: 0, width: HANDLE, height: HANDLE },
+  handle: {
+    width: HANDLE,
+    height: HANDLE,
+    borderRadius: HANDLE / 2,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.accent2,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  danger: { backgroundColor: colors.danger, borderColor: colors.danger },
+  accent: { backgroundColor: colors.accent2, borderColor: colors.accent2 },
   text: {
     fontWeight: '600',
     padding: 0,
