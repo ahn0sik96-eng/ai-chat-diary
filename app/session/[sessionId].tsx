@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,13 +19,15 @@ import { CalendarEvent, ChatSession } from '@/types';
 import { getPersona } from '@/config/personas';
 import { useChat } from '@/hooks/useChat';
 import { MessageBubble } from '@/components/chat/MessageBubble';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { colors, radius, shadow, spacing, typography } from '@/theme/tokens';
 
 export default function ChatScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const [session, setSession] = useState<ChatSession | null>(null);
   const listRef = useRef<FlatList>(null);
   const [input, setInput] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
 
@@ -33,11 +35,19 @@ export default function ChatScreen() {
     if (sessionId) ChatRepository.getSession(sessionId).then(setSession);
   }, [sessionId]);
 
+  // Scroll to the latest message when the keyboard opens so it isn't hidden.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    });
+    return () => sub.remove();
+  }, []);
+
   const onEventsAdded = useCallback((events: CalendarEvent[]) => {
-    const lines = events
-      .map((e) => `· ${e.title} (${e.date.replaceAll('-', '. ')})`)
-      .join('\n');
-    Alert.alert('📅 캘린더에 일정 추가', `대화에서 일정을 찾았어요!\n\n${lines}`);
+    const titles = events.map((e) => e.title).join(', ');
+    setToast(`📅 캘린더에 추가됨 · ${titles}`);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2800);
   }, []);
 
   const { messages, sending, error, send } = useChat(
@@ -85,6 +95,11 @@ export default function ChatScreen() {
             ) : null,
         }}
       />
+      {toast && (
+        <View style={styles.toast} pointerEvents="none">
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      )}
       <FlatList
         ref={listRef}
         data={messages}
@@ -119,6 +134,18 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
+  toast: {
+    position: 'absolute',
+    top: 8,
+    alignSelf: 'center',
+    zIndex: 20,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    ...shadow.float,
+  },
+  toastText: { color: colors.onPrimary, fontWeight: '700', fontSize: 13 },
   messages: { padding: spacing.lg, paddingBottom: spacing.md, flexGrow: 1, justifyContent: 'flex-end' },
   diaryBtn: {
     backgroundColor: colors.primary,

@@ -43,7 +43,20 @@ export default function DecorateScreen() {
   const bringToFront = useDecorationStore((s) => s.bringToFront);
   const undo = useDecorationStore((s) => s.undo);
   const updateTextStyle = useDecorationStore((s) => s.updateTextStyle);
+  const updateTextContent = useDecorationStore((s) => s.updateTextContent);
   const toggleTextHidden = useDecorationStore((s) => s.toggleTextHidden);
+
+  const editText = (el: TextElement) => {
+    Alert.prompt(
+      '문장 수정',
+      undefined,
+      (text) => {
+        if (typeof text === 'string' && text.trim()) updateTextContent(el.id, text.trim());
+      },
+      'plain-text',
+      el.text,
+    );
+  };
   const select = useDecorationStore((s) => s.select);
 
   const selected = elements.find((e) => e.id === selectedId) ?? null;
@@ -152,6 +165,7 @@ export default function DecorateScreen() {
             <TextControls
               element={selected as TextElement}
               colors={TEXT_COLORS}
+              onEdit={() => editText(selected as TextElement)}
               onColor={(c) => updateTextStyle(selected.id, { color: c })}
               onSize={(d) =>
                 updateTextStyle(selected.id, {
@@ -221,18 +235,21 @@ export default function DecorateScreen() {
 function TextControls({
   element,
   colors: palette,
+  onEdit,
   onColor,
   onSize,
   onHide,
 }: {
   element: TextElement;
   colors: string[];
+  onEdit: () => void;
   onColor: (c: string) => void;
   onSize: (delta: number) => void;
   onHide: () => void;
 }) {
   return (
     <View style={styles.textControls}>
+      <ToolBtn label="✎ 수정" onPress={onEdit} />
       <ToolBtn label="A−" onPress={() => onSize(-6)} />
       <ToolBtn label="A+" onPress={() => onSize(6)} />
       <ToolBtn label={element.hidden ? '보이기' : '숨기기'} onPress={onHide} />

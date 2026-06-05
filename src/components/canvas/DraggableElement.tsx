@@ -122,8 +122,11 @@ function DraggableElementBase({
         style={[
           styles.text,
           {
+            // ~88% of the canvas width so long sentences wrap inside, never clipped
+            maxWidth: 880 * displayScale,
             color: element.color,
             fontSize: element.fontSize * displayScale,
+            lineHeight: element.fontSize * displayScale * 1.35,
             textAlign: element.align,
             opacity: element.hidden ? 0.18 : 1,
           },
@@ -183,9 +186,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   text: {
-    maxWidth: 260,
     fontWeight: '600',
-    lineHeight: undefined,
   },
 });
 

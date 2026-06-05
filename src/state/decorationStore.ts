@@ -33,6 +33,7 @@ interface DecorationState {
   bringToFront: (id: string) => void;
   remove: (id: string) => void;
   updateTextStyle: (id: string, patch: Partial<Pick<TextElement, 'color' | 'fontSize'>>) => void;
+  updateTextContent: (id: string, text: string) => void;
   toggleTextHidden: (id: string) => void;
 
   pushHistory: () => void;
@@ -150,6 +151,15 @@ export const useDecorationStore = create<DecorationState>((set, get) => ({
     set((s) => ({
       elements: s.elements.map((e) =>
         e.id === id && e.type === 'text' ? { ...e, ...patch } : e,
+      ),
+    }));
+  },
+
+  updateTextContent: (id, text) => {
+    get().pushHistory();
+    set((s) => ({
+      elements: s.elements.map((e) =>
+        e.id === id && e.type === 'text' ? { ...e, text } : e,
       ),
     }));
   },
