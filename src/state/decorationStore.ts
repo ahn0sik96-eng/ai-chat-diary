@@ -18,11 +18,13 @@ interface DecorationState {
   background: DiaryBackground;
   elements: CanvasElement[];
   selectedId: string | null;
+  editingId: string | null;
   maxZ: number;
   history: CanvasElement[][];
 
   init: (diaryId: string, sentences: DiarySentence[], layout: DiaryLayout | null) => void;
   select: (id: string | null) => void;
+  setEditing: (id: string | null) => void;
   setBackground: (bg: DiaryBackground) => void;
 
   addSticker: (assetId: string) => void;
@@ -65,6 +67,7 @@ export const useDecorationStore = create<DecorationState>((set, get) => ({
   background: { type: 'color', value: colors.surface },
   elements: [],
   selectedId: null,
+  editingId: null,
   maxZ: 0,
   history: [],
 
@@ -76,6 +79,7 @@ export const useDecorationStore = create<DecorationState>((set, get) => ({
         background: layout.background,
         elements: layout.elements,
         selectedId: null,
+        editingId: null,
         maxZ,
         history: [],
       });
@@ -86,6 +90,7 @@ export const useDecorationStore = create<DecorationState>((set, get) => ({
         background: { type: 'color', value: colors.surface },
         elements: els,
         selectedId: null,
+        editingId: null,
         maxZ: els.length,
         history: [],
       });
@@ -93,6 +98,7 @@ export const useDecorationStore = create<DecorationState>((set, get) => ({
   },
 
   select: (id) => set({ selectedId: id }),
+  setEditing: (id) => set({ editingId: id, selectedId: id ?? get().selectedId }),
   setBackground: (bg) => {
     get().pushHistory();
     set({ background: bg });

@@ -21,8 +21,11 @@ export const DiaryCanvas = forwardRef<View, Props>(function DiaryCanvas(
   const elements = useDecorationStore((s) => s.elements);
   const background = useDecorationStore((s) => s.background);
   const selectedId = useDecorationStore((s) => s.selectedId);
+  const editingId = useDecorationStore((s) => s.editingId);
   const select = useDecorationStore((s) => s.select);
+  const setEditing = useDecorationStore((s) => s.setEditing);
   const updateTransform = useDecorationStore((s) => s.updateTransform);
+  const updateTextContent = useDecorationStore((s) => s.updateTextContent);
 
   const height = width * (CANVAS_REF.height / CANVAS_REF.width);
   const displayScale = width / CANVAS_REF.width;
@@ -40,12 +43,15 @@ export const DiaryCanvas = forwardRef<View, Props>(function DiaryCanvas(
       collapsable={false}
       style={[styles.canvas, { width, height }, bgStyle]}
     >
-      {/* Tap empty area to deselect */}
+      {/* Tap empty area to deselect / finish editing */}
       {editable && (
         <View
           style={StyleSheet.absoluteFill}
           onStartShouldSetResponder={() => true}
-          onResponderRelease={() => select(null)}
+          onResponderRelease={() => {
+            select(null);
+            setEditing(null);
+          }}
         />
       )}
       {sorted.map((el) => (
@@ -55,7 +61,11 @@ export const DiaryCanvas = forwardRef<View, Props>(function DiaryCanvas(
           displayScale={displayScale}
           editable={editable}
           selected={selectedId === el.id}
+          editing={editingId === el.id}
           onSelect={select}
+          onStartEdit={setEditing}
+          onCommitText={updateTextContent}
+          onEndEdit={() => setEditing(null)}
           onCommit={updateTransform}
         />
       ))}

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, TextInput } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -16,7 +16,11 @@ interface Props {
   displayScale: number;
   selected: boolean;
   editable: boolean;
+  editing: boolean;
   onSelect: (id: string) => void;
+  onStartEdit: (id: string) => void;
+  onCommitText: (id: string, text: string) => void;
+  onEndEdit: () => void;
   /** Commit final transform (in canvas-ref units) to the store on gesture end. */
   onCommit: (id: string, t: { x: number; y: number; scale: number; rotation: number }) => void;
 }
@@ -31,9 +35,25 @@ function DraggableElementBase({
   displayScale,
   selected,
   editable,
+  editing,
   onSelect,
+  onStartEdit,
+  onCommitText,
+  onEndEdit,
   onCommit,
 }: Props) {
+  const isText = element.type === 'text';
+  const [draft, setDraft] = useState('');
+  useEffect(() => {
+    if (editing && element.type === 'text') setDraft(element.text);
+  }, [editing]);
+
+  const startEdit = () => onStartEdit(element.id);
+  const commitText = () => {
+    const t = draft.trim();
+    if (t && element.type === 'text') onCommitText(element.id, t);
+    onEndEdit();
+  };
   // Center position in SCREEN coordinates.
   const cx = useSharedValue(element.x * displayScale);
   const cy = useSharedValue(element.y * displayScale);
@@ -67,8 +87,11 @@ function DraggableElementBase({
     });
   };
 
+  // While editing text, all manipulation gestures are off so typing works.
+  const active = editable && !editing;
+
   const pan = Gesture.Pan()
-    .enabled(editable)
+    .enabled(active)
     .onStart(() => {
       startX.value = cx.value;
       startY.value = cy.value;
@@ -81,7 +104,7 @@ function DraggableElementBase({
     .onEnd(() => runOnJS(commit)());
 
   const pinch = Gesture.Pinch()
-    .enabled(editable)
+    .enabled(active)
     .onStart(() => {
       startScale.value = scale.value;
       runOnJS(onSelect)(element.id);
@@ -92,7 +115,7 @@ function DraggableElementBase({
     .onEnd(() => runOnJS(commit)());
 
   const rotate = Gesture.Rotation()
-    .enabled(editable)
+    .enabled(active)
     .onStart(() => {
       startRot.value = rotation.value;
     })
@@ -101,11 +124,18 @@ function DraggableElementBase({
     })
     .onEnd(() => runOnJS(commit)());
 
-  const tap = Gesture.Tap()
-    .enabled(editable)
+  const doubleTap = Gesture.Tap()
+    .enabled(active && isText)
+    .numberOfTaps(2)
+    .onEnd(() => runOnJS(startEdit)());
+
+  const singleTap = Gesture.Tap()
+    .enabled(active)
     .onEnd(() => runOnJS(onSelect)(element.id));
 
-  const composed = Gesture.Simultaneous(tap, pan, pinch, rotate);
+  // Double-tap (edit) takes priority over single-tap (select).
+  const taps = Gesture.Exclusive(doubleTap, singleTap);
+  const composed = Gesture.Simultaneous(taps, pan, pinch, rotate);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -116,24 +146,37 @@ function DraggableElementBase({
     ],
   }));
 
+  const textStyle =
+    element.type === 'text'
+      ? ({
+          // ~88% of the canvas width so long sentences wrap inside, never clipped
+          maxWidth: 880 * displayScale,
+          color: element.color,
+          fontSize: element.fontSize * displayScale,
+          lineHeight: element.fontSize * displayScale * 1.35,
+          textAlign: element.align,
+        } as const)
+      : null;
+
   const content =
     element.type === 'text' ? (
-      <Text
-        style={[
-          styles.text,
-          {
-            // ~88% of the canvas width so long sentences wrap inside, never clipped
-            maxWidth: 880 * displayScale,
-            color: element.color,
-            fontSize: element.fontSize * displayScale,
-            lineHeight: element.fontSize * displayScale * 1.35,
-            textAlign: element.align,
-            opacity: element.hidden ? 0.18 : 1,
-          },
-        ]}
-      >
-        {element.text}
-      </Text>
+      editing ? (
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          autoFocus
+          multiline
+          selectTextOnFocus
+          style={[styles.text, textStyle, styles.editing]}
+          onBlur={commitText}
+          onSubmitEditing={commitText}
+          blurOnSubmit
+        />
+      ) : (
+        <Text style={[styles.text, textStyle, { opacity: element.hidden ? 0.18 : 1 }]}>
+          {element.text}
+        </Text>
+      )
     ) : (
       <StickerView assetId={element.assetId} displayScale={displayScale} />
     );
@@ -187,6 +230,11 @@ const styles = StyleSheet.create({
   },
   text: {
     fontWeight: '600',
+    padding: 0,
+  },
+  editing: {
+    minWidth: 40,
+    backgroundColor: 'rgba(124,77,255,0.10)',
   },
 });
 
